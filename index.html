@@ -707,35 +707,72 @@ async function graphCall(method, endpoint, body) {
 async function discoverSiteAndLists() {
   setLoading('Σύνδεση με Microsoft Lists...', 20);
 
-  // Microsoft Lists (personal) live on the user's personal SharePoint site
-  // Get it via /me/drive webUrl
-  setLoading('Εντοπισμός site...', 30);
   var driveInfo = await graphCall('GET', '/me/drive?$select=webUrl,id');
-  var webUrl = driveInfo.webUrl; 
-  // webUrl looks like: https://pkinsurancegr-my.sharepoint.com/personal/kk_pkinsurance_gr/Documents
-  // We need: https://pkinsurancegr-my.sharepoint.com/personal/kk_pkinsurance_gr
+  var webUrl = driveInfo.webUrl;
   var url = new URL(webUrl);
   var hostname = url.hostname; // pkinsurancegr-my.sharepoint.com
-  var pathParts = url.pathname.split('/'); // ['','personal','kk_pkinsurance_gr','Documents']
-  // Build site path without /Documents
-  var sitePath = '/' + pathParts.filter(function(p,i){ return i>0 && p && p!=='Documents'; }).join('/');
 
-  setLoading('Φόρτωση Lists...', 45);
-  var siteInfo = await graphCall('GET', '/sites/' + hostname + ':' + sitePath + '?$select=id,displayName,webUrl');
-  graphSiteId = siteInfo.id;
+  setLoading('Εντοπισμός Lists...', 35);
 
-  var listsResp = await graphCall('GET', '/sites/' + graphSiteId + '/lists?$select=id,displayName&$top=200');
-  var lists = listsResp.value || [];
-  console.log('Site ID:', graphSiteId);
-  console.log('All lists found:', lists.map(function(l){return l.displayName;}));
+  // Microsoft Lists (personal) are stored at the root of the -my.sharepoint.com host
+  // Try multiple site paths
+  var sitePaths = [
+    '/sites/Lists',
+    '/personal/kk_pkinsurance_gr',
+    '/'
+  ];
+
+  var pathParts = url.pathname.split('/').filter(Boolean);
+  // e.g. ['personal', 'kk_pkinsurance_gr', 'Documents']
+  if (pathParts.length >= 2) {
+    sitePaths.unshift('/' + pathParts[0] + '/' + pathParts[1]);
+  }
+
+  // Try each site path
   var needed = ['PK_Policies','PK_ActivityLog','PK_PendingReg','PK_SORegistry'];
-  var missing = [];
-  needed.forEach(function(name) {
-    var found = lists.find(function(l) { return l.displayName === name; });
-    if (found) graphListIds[name] = found.id;
-    else missing.push(name);
-  });
-  if (missing.length > 0) throw new Error('Δεν βρέθηκαν τα lists: ' + missing.join(', '));
+  
+  // First try: search ALL sites on the tenant for our lists
+  setLoading('Αναζήτηση Lists...', 40);
+  
+  // Try the personal site path variants
+  for (var i = 0; i < sitePaths.length; i++) {
+    try {
+      var siteInfo = await graphCall('GET', '/sites/' + hostname + ':' + sitePaths[i] + '?$select=id,displayName,webUrl');
+      var testSiteId = siteInfo.id;
+      var listsResp = await graphCall('GET', '/sites/' + testSiteId + '/lists?$select=id,displayName&$top=200');
+      var lists = listsResp.value || [];
+      console.log('Trying path', sitePaths[i], '→ lists:', lists.map(function(l){return l.displayName;}));
+      
+      var found = needed.filter(function(name){ return lists.find(function(l){return l.displayName===name;}); });
+      if (found.length === needed.length) {
+        graphSiteId = testSiteId;
+        needed.forEach(function(name) {
+          graphListIds[name] = lists.find(function(l){return l.displayName===name;}).id;
+        });
+        return; // success
+      }
+    } catch(e) {
+      console.log('Path', sitePaths[i], 'failed:', e.message);
+    }
+  }
+
+  // Last resort: try root site
+  try {
+    var rootSite = await graphCall('GET', '/sites/' + hostname + '?$select=id,displayName');
+    graphSiteId = rootSite.id;
+    var listsResp2 = await graphCall('GET', '/sites/' + graphSiteId + '/lists?$select=id,displayName&$top=200');
+    var lists2 = listsResp2.value || [];
+    console.log('Root site lists:', lists2.map(function(l){return l.displayName;}));
+    var missing = [];
+    needed.forEach(function(name) {
+      var f = lists2.find(function(l){return l.displayName===name;});
+      if (f) graphListIds[name] = f.id;
+      else missing.push(name);
+    });
+    if (missing.length > 0) throw new Error('Δεν βρέθηκαν τα lists: ' + missing.join(', '));
+  } catch(e) {
+    throw new Error('Δεν βρέθηκαν τα lists: ' + needed.join(', '));
+  }
 }
 
 // ════════════════════════════════════════════════════
