@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PK · Renewals Hub — LIVE</title>
 <script src="https://unpkg.com/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -481,7 +482,8 @@ mono{font-family:'IBM Plex Mono',monospace;}
     <strong>&#128229; RAW Data</strong> — Import από iView (Excel/CSV). Συμπλήρωσε inline: Γονική, Email, Τηλ., CC, ΚΗΠ (αν υπάρχει), Notes. <strong style="color:var(--proposal)">&#9888; ΠΡΟΤΑΣΗ ΑΝΑΝΕΩΣΗΣ</strong> = πορτοκαλί σήμανση — αν πληρωθεί, <u>άλλαξε τύπο στο iView</u>.
   </div>
   <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
-    <button class="btn mail" onclick="showToast('Import — σύνδεση με iView Excel/CSV','#1d4ed8')">&#128229; Import iView</button>
+    <button class="btn mail" onclick="document.getElementById('iviewFile').click()">&#128229; Import iView</button>
+    <input type="file" id="iviewFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importIView(this)">
     <button class="btn promo" onclick="promoteAll()">&#11014; Promote Όλα τα Νέα</button>
     <div style="flex:1"></div>
     <span style="font-size:11px;color:var(--text3);white-space:nowrap">Εξαγωγή — Λήξη από:</span>
@@ -1751,11 +1753,25 @@ function promoteOne(id){
     document.getElementById('modalOverlay').classList.add('open');
     return;
   }
-  r.status='ok';renderRaw();showToast('Promoted: '+r.client,'#166534');
+  r.status='ok';
+  // Save to Graph PK_Policies
+  graphCreatePolicy(r).then(function(resp){
+    if(resp && resp.id){ r.graphId=resp.id; r.id=resp.id; }
+    records.push(Object.assign({},r,{id:r.graphId||r.id,snoozeUntil:null,snoozeActive:false,snoozeNote:'',sos:false,hold:'',credit:false,soHistory:false,promise:'',clientType:'personal',isOD:r.branch==='Οδικής Βοήθειας',code:r.kip||''}));
+    updateBadges();renderQueue();
+  });
+  renderRaw();showToast('Promoted: '+r.client,'#166534');
 }
 function forcePromote(id){
   var r=rawData.find(function(x){return x.id===id;});
-  if(r){r.status='ok';}
+  if(r){
+    r.status='ok';
+    graphCreatePolicy(r).then(function(resp){
+      if(resp && resp.id){ r.graphId=resp.id; r.id=resp.id; }
+      records.push(Object.assign({},r,{id:r.graphId||r.id,snoozeUntil:null,snoozeActive:false,snoozeNote:'',sos:false,hold:'',credit:false,soHistory:false,promise:'',clientType:'personal',isOD:r.branch==='Οδικής Βοήθειας',code:r.kip||''}));
+      updateBadges();renderQueue();
+    });
+  }
   closeModal();renderRaw();showToast('Promoted (επιβεβαιώθηκε)','#166534');
 }
 function promoteAll(){
@@ -1765,13 +1781,126 @@ function promoteAll(){
            (r.plate&&records.find(function(x){return x.plate&&x.plate===r.plate;}));
   });
   if(hasDups){showToast('Υπάρχουν πιθανά διπλότυπα — Promote ένα-ένα για έλεγχο','#c2410c');return;}
-  news.forEach(function(r){r.status='ok';});
-  renderRaw();showToast('Όλα Promoted','#166534');
+  news.forEach(function(r){
+    r.status='ok';
+    graphCreatePolicy(r).then(function(resp){
+      if(resp && resp.id){ r.graphId=resp.id; }
+      records.push(Object.assign({},r,{id:r.graphId||r.id,snoozeUntil:null,snoozeActive:false,snoozeNote:'',sos:false,hold:'',credit:false,soHistory:false,promise:'',clientType:'personal',isOD:r.branch==='Οδικής Βοήθειας',code:r.kip||''}));
+      updateBadges();renderQueue();
+    });
+  });
+  renderRaw();showToast('Όλα Promoted ('+news.length+')','#166534');
 }
 
 // ════════════════════════════════════════════════════
-// ARCHIVE
+// IMPORT iVIEW (Excel/CSV)
 // ════════════════════════════════════════════════════
+function importIView(input) {
+  var file = input.files[0]; if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = new Uint8Array(e.target.result);
+      var wb = XLSX.read(data, {type:'array', cellDates:true});
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, dateNF:'dd/mm/yyyy'});
+      if (rows.length < 2) { showToast('Κενό αρχείο','#b91c1c'); return; }
+
+      // Detect header row
+      var headers = rows[0].map(function(h){ return (h||'').toString().toLowerCase().trim(); });
+      function col(names) {
+        for (var i=0; i<names.length; i++) {
+          var idx = headers.findIndex(function(h){ return h.indexOf(names[i].toLowerCase()) >= 0; });
+          if (idx >= 0) return idx;
+        }
+        return -1;
+      }
+      var cClient  = col(['πελάτης','pelatis','client','ονομ']);
+      var cInsurer = col(['εταιρ','ασφαλιστ','insurer','company']);
+      var cBranch  = col(['κλάδ','kladd','branch']);
+      var cPolicy  = col(['αρ. συμβ','συμβολαί','policy','number']);
+      var cPlate   = col(['χαρακτ','πινακ','plate','χαρ']);
+      var cPremium = col(['μικτ','ασφάλιστρ','premium','ποσό']);
+      var cExpiry  = col(['λήξ','expiry','ημερ']);
+      var cPhone   = col(['τηλ','phone']);
+
+      var imported = 0, dupes = 0;
+      var newRaw = [];
+      for (var i = 1; i < rows.length; i++) {
+        var row = rows[i];
+        var client = cClient >= 0 ? (row[cClient]||'').toString().trim() : '';
+        if (!client) continue;
+
+        var insurer = cInsurer >= 0 ? (row[cInsurer]||'').toString().replace(/^_/,'').trim() : '';
+        var branch  = cBranch  >= 0 ? (row[cBranch]||'').toString().trim() : '';
+        var policy  = cPolicy  >= 0 ? (row[cPolicy]||'').toString().trim() : '';
+        var plate   = cPlate   >= 0 ? (row[cPlate]||'').toString().trim() : '';
+        var phone   = cPhone   >= 0 ? (row[cPhone]||'').toString().trim() : '';
+        var premRaw = cPremium >= 0 ? (row[cPremium]||'').toString().replace(',','.').replace(/[^0-9.]/g,'') : '';
+        var premNum = parseFloat(premRaw) || 0;
+        var premStr = premNum ? String(premNum.toFixed(2)).replace('.',',') : '—';
+
+        var expiryRaw = cExpiry >= 0 ? (row[cExpiry]||'').toString().trim() : '';
+        // Normalize date: could be dd/mm/yyyy or yyyy-mm-dd or JS date string
+        var expiry = '';
+        if (expiryRaw) {
+          if (/^\d{2}\/\d{2}\/\d{4}$/.test(expiryRaw)) {
+            expiry = expiryRaw;
+          } else if (/^\d{4}-\d{2}-\d{2}/.test(expiryRaw)) {
+            var p = expiryRaw.substring(0,10).split('-');
+            expiry = p[2]+'/'+p[1]+'/'+p[0];
+          } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(expiryRaw)) {
+            var p2 = expiryRaw.split('/');
+            expiry = p2[0].padStart(2,'0')+'/'+p2[1].padStart(2,'0')+'/'+p2[2];
+          } else {
+            // Try parsing as date
+            var d = new Date(expiryRaw);
+            if (!isNaN(d)) expiry = String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+          }
+        }
+        var month = expiry ? expiry.substring(6,10)+'-'+expiry.substring(3,5) : currentMonth;
+
+        // Check duplicate
+        var isDup = policy && (rawData.find(function(x){return x.policy===policy;}) || records.find(function(x){return x.policy===policy;}));
+        var status = isDup ? 'dup' : 'new';
+        if (isDup) dupes++;
+
+        newRaw.push({
+          id: Date.now() + i,
+          client: client, insurer: insurer, branch: branch, policy: policy,
+          plate: branch==='Αυτοκινήτου'||branch==='Οδικής Βοήθειας' ? plate : '',
+          address: branch==='Πυρός' ? plate : '',
+          premium: premStr, premNum: premNum,
+          expiry: expiry, month: month,
+          phone: phone, email: '', parent: client, kip: '', note: '',
+          isProposal: false, source: 'iview', status: status,
+          last: '—'
+        });
+        imported++;
+      }
+
+      // Merge with existing rawData (avoid re-import dupes)
+      var existingPolicies = rawData.map(function(r){return r.policy;}).filter(Boolean);
+      newRaw = newRaw.filter(function(r){
+        return !r.policy || existingPolicies.indexOf(r.policy) < 0;
+      });
+      rawData = rawData.concat(newRaw);
+
+      input.value = '';
+      renderRaw(); updateBadges();
+      showToast('Import: '+newRaw.length+' εγγραφές'+(dupes?' ('+dupes+' διπλότυπα)':''),'#166534');
+    } catch(err) {
+      showToast('Σφάλμα import: '+err.message,'#b91c1c');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ════════════════════════════════════════════════════
+// PROMOTE → saves to PK_Policies via Graph
+// ════════════════════════════════════════════════════
+
 function exportRawExcel(){
   var fromVal=document.getElementById('rawExFrom').value; // yyyy-mm-dd or ''
   var toVal=document.getElementById('rawExTo').value;
