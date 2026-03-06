@@ -705,63 +705,75 @@ async function graphCall(method, endpoint, body) {
 // SITE & LIST DISCOVERY
 // ════════════════════════════════════════════════════
 async function discoverSiteAndLists() {
-  setLoading('Σύνδεση με Microsoft Lists...', 30);
+  setLoading('Σύνδεση με Microsoft Lists...', 25);
 
-  // Known list IDs from lists.microsoft.com URLs (format: {listGuid}_{siteGuid})
+  // Known list GUIDs (from lists.microsoft.com URLs)
   var KNOWN_LISTS = {
-    'PK_Policies':    '10cec4c094614463841f1c4300a9176d',
-    'PK_ActivityLog': 'cb96c3e0bb284bb3a9cc741f09117a7c',
-    'PK_PendingReg':  'e5c11e3cb6bf4b8c89010a2598661e71',
-    'PK_SORegistry':  '5c1778ebc75244aea9671d977c7013da'
+    'PK_Policies':    '10cec4c0-9461-4463-841f-1c4300a9176d',
+    'PK_ActivityLog': 'cb96c3e0-bb28-4bb3-a9cc-741f09117a7c',
+    'PK_PendingReg':  'e5c11e3c-b6bf-4b8c-8901-0a2598661e71',
+    'PK_SORegistry':  '5c1778eb-c752-44ae-a967-1d977c7013da'
   };
-  var SITE_SUFFIX = '84BC3F0CAC60071F';
 
-  setLoading('Εντοπισμός site...', 40);
+  setLoading('Εντοπισμός site...', 35);
 
-  // Find the site that contains our lists
-  // Try the main SharePoint site first, then personal
+  // Get drive info to find hostname
   var driveInfo = await graphCall('GET', '/me/drive?$select=webUrl');
   var hostname = new URL(driveInfo.webUrl).hostname; // pkinsurancegr-my.sharepoint.com
-  var mainHostname = hostname.replace('-my.', '.'); // pkinsurancegr.sharepoint.com
 
-  // Search all sites
-  var sitesToTry = [
-    '/sites/' + hostname,
-    '/sites/' + mainHostname,
-    '/sites/' + mainHostname + ':/sites/Lists',
-    '/sites/' + hostname + ':/personal/kk_pkinsurance_gr'
+  // Try candidate sites
+  var candidates = [
+    hostname,
+    hostname.replace('-my.', '.'),
+    hostname + ':/personal/kk_pkinsurance_gr',
+    hostname + ':/sites/Lists'
   ];
 
-  for (var i = 0; i < sitesToTry.length; i++) {
+  setLoading('Αναζήτηση Lists...', 45);
+
+  // Search all sites on tenant
+  var allSites = [];
+  try {
+    var sr = await graphCall('GET', '/sites?search=' + hostname.split('-my')[0] + '&$top=50&$select=id,webUrl');
+    allSites = sr.value || [];
+    console.log('Sites found via search:', allSites.map(function(s){return s.webUrl;}));
+  } catch(e) { console.log('Search failed:', e.message); }
+
+  // Try each site to find our list
+  var testListGuid = '10cec4c0-9461-4463-841f-1c4300a9176d';
+  
+  // Add hardcoded site candidates
+  var siteIds = allSites.map(function(s){return s.id;});
+  
+  // Also try direct hostname approaches
+  for (var k = 0; k < candidates.length; k++) {
     try {
-      var s = await graphCall('GET', sitesToTry[i] + '?$select=id,webUrl');
-      if (s.id && s.id.toUpperCase().indexOf(SITE_SUFFIX) >= 0) {
-        graphSiteId = s.id;
-        console.log('Found site:', s.id, s.webUrl);
-        break;
-      }
-    } catch(e) { console.log('Site not found:', sitesToTry[i]); }
+      var cs = await graphCall('GET', '/sites/' + candidates[k] + '?$select=id,webUrl');
+      if (cs.id && siteIds.indexOf(cs.id) < 0) siteIds.push(cs.id);
+    } catch(e) {}
   }
 
-  // If still not found, search via Graph sites search
-  if (!graphSiteId) {
-    var searchResp = await graphCall('GET', '/sites?search=' + mainHostname.split('.')[0]);
-    var sites = (searchResp.value || []);
-    for (var j = 0; j < sites.length; j++) {
-      if (sites[j].id && sites[j].id.toUpperCase().indexOf(SITE_SUFFIX) >= 0) {
-        graphSiteId = sites[j].id;
-        console.log('Found via search:', sites[j].id, sites[j].webUrl);
+  console.log('Trying', siteIds.length, 'site candidates...');
+
+  for (var i = 0; i < siteIds.length; i++) {
+    try {
+      var testResp = await graphCall('GET', '/sites/' + siteIds[i] + '/lists/' + testListGuid + '?$select=id,displayName');
+      if (testResp.id) {
+        graphSiteId = siteIds[i];
+        console.log('Found site with our lists:', graphSiteId);
         break;
       }
-    }
+    } catch(e) {}
   }
 
-  if (!graphSiteId) throw new Error('Δεν βρέθηκε το site. Επικοινώνησε με τον IT.');
+  if (!graphSiteId) throw new Error('Δεν βρέθηκε το site. Επικοινώνησε με τον IT (κωδ: SITE_NOT_FOUND)');
 
+  // Map list names to GUIDs
   setLoading('Φόρτωση Lists...', 55);
-  // Assign known list IDs
-  Object.assign(graphListIds, KNOWN_LISTS);
-  console.log('Lists hardcoded:', graphListIds);
+  Object.keys(KNOWN_LISTS).forEach(function(name) {
+    graphListIds[name] = KNOWN_LISTS[name];
+  });
+  console.log('Site found! Lists ready.');
 }
 
 // ════════════════════════════════════════════════════
