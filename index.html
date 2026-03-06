@@ -726,6 +726,8 @@ async function discoverSiteAndLists() {
 
   var listsResp = await graphCall('GET', '/sites/' + graphSiteId + '/lists?$select=id,displayName&$top=200');
   var lists = listsResp.value || [];
+  console.log('Site ID:', graphSiteId);
+  console.log('All lists found:', lists.map(function(l){return l.displayName;}));
   var needed = ['PK_Policies','PK_ActivityLog','PK_PendingReg','PK_SORegistry'];
   var missing = [];
   needed.forEach(function(name) {
