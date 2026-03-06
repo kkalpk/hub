@@ -705,18 +705,48 @@ async function graphCall(method, endpoint, body) {
 // SITE & LIST DISCOVERY
 // ════════════════════════════════════════════════════
 async function discoverSiteAndLists() {
-  setLoading('Εντοπισμός SharePoint...', 10);
-  // Get personal site via OneDrive
-  var driveInfo = await graphCall('GET', '/me/drive');
-  var webUrl = driveInfo.webUrl; // e.g. https://tenant-my.sharepoint.com/personal/user
-  var url = new URL(webUrl);
-  var hostname = url.hostname;
-  var sitePath = url.pathname;
-  setLoading('Σύνδεση με SharePoint...', 20);
-  var siteInfo = await graphCall('GET', '/sites/' + hostname + ':' + sitePath);
-  graphSiteId = siteInfo.id;
-  setLoading('Φόρτωση Lists...', 30);
-  var listsResp = await graphCall('GET', '/sites/' + graphSiteId + '/lists?$select=id,displayName');
+  setLoading('Σύνδεση με Microsoft Lists...', 20);
+  // Microsoft Lists (personal) are stored in the user's personal SharePoint site
+  // Try to find via /me/drive first, then fallback to direct search
+  var token = await getToken();
+  
+  // Try the user's personal site directly
+  var meResp = await graphCall('GET', '/me?$select=userPrincipalName');
+  var upn = meResp.userPrincipalName || '';
+  var domain = upn.split('@')[1] || '';
+  var domainPrefix = domain.split('.')[0];
+  
+  // Personal lists site: https://{tenant}-my.sharepoint.com/personal/{upn_with_underscores}
+  var upnClean = upn.replace('@','_').replace(/\./g,'_');
+  
+  setLoading('Εντοπισμός Lists...', 35);
+  
+  // Try to find PK_Policies list via search across all sites
+  var searchResp = await graphCall('GET', '/me/followedSites?$select=id,displayName,webUrl');
+  var sites = (searchResp && searchResp.value) ? searchResp.value : [];
+  
+  // Also try personal site
+  var personalSiteUrl = 'https://' + domainPrefix + '-my.sharepoint.com/personal/' + upnClean;
+  
+  setLoading('Φόρτωση Lists...', 45);
+
+  // Try personal site
+  var siteInfo = null;
+  try {
+    siteInfo = await graphCall('GET', '/sites/' + domainPrefix + '-my.sharepoint.com:/personal/' + upnClean);
+    graphSiteId = siteInfo.id;
+  } catch(e) {
+    // Try via OneDrive
+    var driveInfo = await graphCall('GET', '/me/drive?$select=id,webUrl');
+    var webUrl = driveInfo.webUrl;
+    var url = new URL(webUrl);
+    var hostname = url.hostname;
+    var pathname = url.pathname;
+    siteInfo = await graphCall('GET', '/sites/' + hostname + ':' + pathname);
+    graphSiteId = siteInfo.id;
+  }
+
+  var listsResp = await graphCall('GET', '/sites/' + graphSiteId + '/lists?$select=id,displayName&$top=100');
   var lists = listsResp.value || [];
   var needed = ['PK_Policies','PK_ActivityLog','PK_PendingReg','PK_SORegistry'];
   var missing = [];
@@ -725,7 +755,7 @@ async function discoverSiteAndLists() {
     if (found) graphListIds[name] = found.id;
     else missing.push(name);
   });
-  if (missing.length > 0) throw new Error('Δεν βρέθηκαν τα lists: ' + missing.join(', ') + '. Βεβαιώσου ότι τα δημιούργησες στο lists.microsoft.com');
+  if (missing.length > 0) throw new Error('Δεν βρέθηκαν τα lists: ' + missing.join(', '));
 }
 
 // ════════════════════════════════════════════════════
