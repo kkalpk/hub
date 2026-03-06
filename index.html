@@ -705,74 +705,63 @@ async function graphCall(method, endpoint, body) {
 // SITE & LIST DISCOVERY
 // ════════════════════════════════════════════════════
 async function discoverSiteAndLists() {
-  setLoading('Σύνδεση με Microsoft Lists...', 20);
+  setLoading('Σύνδεση με Microsoft Lists...', 30);
 
-  var driveInfo = await graphCall('GET', '/me/drive?$select=webUrl,id');
-  var webUrl = driveInfo.webUrl;
-  var url = new URL(webUrl);
-  var hostname = url.hostname; // pkinsurancegr-my.sharepoint.com
+  // Known list IDs from lists.microsoft.com URLs (format: {listGuid}_{siteGuid})
+  var KNOWN_LISTS = {
+    'PK_Policies':    '10cec4c094614463841f1c4300a9176d',
+    'PK_ActivityLog': 'cb96c3e0bb284bb3a9cc741f09117a7c',
+    'PK_PendingReg':  'e5c11e3cb6bf4b8c89010a2598661e71',
+    'PK_SORegistry':  '5c1778ebc75244aea9671d977c7013da'
+  };
+  var SITE_SUFFIX = '84BC3F0CAC60071F';
 
-  setLoading('Εντοπισμός Lists...', 35);
+  setLoading('Εντοπισμός site...', 40);
 
-  // Microsoft Lists (personal) are stored at the root of the -my.sharepoint.com host
-  // Try multiple site paths
-  var sitePaths = [
-    '/sites/Lists',
-    '/personal/kk_pkinsurance_gr',
-    '/'
+  // Find the site that contains our lists
+  // Try the main SharePoint site first, then personal
+  var driveInfo = await graphCall('GET', '/me/drive?$select=webUrl');
+  var hostname = new URL(driveInfo.webUrl).hostname; // pkinsurancegr-my.sharepoint.com
+  var mainHostname = hostname.replace('-my.', '.'); // pkinsurancegr.sharepoint.com
+
+  // Search all sites
+  var sitesToTry = [
+    '/sites/' + hostname,
+    '/sites/' + mainHostname,
+    '/sites/' + mainHostname + ':/sites/Lists',
+    '/sites/' + hostname + ':/personal/kk_pkinsurance_gr'
   ];
 
-  var pathParts = url.pathname.split('/').filter(Boolean);
-  // e.g. ['personal', 'kk_pkinsurance_gr', 'Documents']
-  if (pathParts.length >= 2) {
-    sitePaths.unshift('/' + pathParts[0] + '/' + pathParts[1]);
+  for (var i = 0; i < sitesToTry.length; i++) {
+    try {
+      var s = await graphCall('GET', sitesToTry[i] + '?$select=id,webUrl');
+      if (s.id && s.id.toUpperCase().indexOf(SITE_SUFFIX) >= 0) {
+        graphSiteId = s.id;
+        console.log('Found site:', s.id, s.webUrl);
+        break;
+      }
+    } catch(e) { console.log('Site not found:', sitesToTry[i]); }
   }
 
-  // Try each site path
-  var needed = ['PK_Policies','PK_ActivityLog','PK_PendingReg','PK_SORegistry'];
-  
-  // First try: search ALL sites on the tenant for our lists
-  setLoading('Αναζήτηση Lists...', 40);
-  
-  // Try the personal site path variants
-  for (var i = 0; i < sitePaths.length; i++) {
-    try {
-      var siteInfo = await graphCall('GET', '/sites/' + hostname + ':' + sitePaths[i] + '?$select=id,displayName,webUrl');
-      var testSiteId = siteInfo.id;
-      var listsResp = await graphCall('GET', '/sites/' + testSiteId + '/lists?$select=id,displayName&$top=200');
-      var lists = listsResp.value || [];
-      console.log('Trying path', sitePaths[i], '→ lists:', lists.map(function(l){return l.displayName;}));
-      
-      var found = needed.filter(function(name){ return lists.find(function(l){return l.displayName===name;}); });
-      if (found.length === needed.length) {
-        graphSiteId = testSiteId;
-        needed.forEach(function(name) {
-          graphListIds[name] = lists.find(function(l){return l.displayName===name;}).id;
-        });
-        return; // success
+  // If still not found, search via Graph sites search
+  if (!graphSiteId) {
+    var searchResp = await graphCall('GET', '/sites?search=' + mainHostname.split('.')[0]);
+    var sites = (searchResp.value || []);
+    for (var j = 0; j < sites.length; j++) {
+      if (sites[j].id && sites[j].id.toUpperCase().indexOf(SITE_SUFFIX) >= 0) {
+        graphSiteId = sites[j].id;
+        console.log('Found via search:', sites[j].id, sites[j].webUrl);
+        break;
       }
-    } catch(e) {
-      console.log('Path', sitePaths[i], 'failed:', e.message);
     }
   }
 
-  // Last resort: try root site
-  try {
-    var rootSite = await graphCall('GET', '/sites/' + hostname + '?$select=id,displayName');
-    graphSiteId = rootSite.id;
-    var listsResp2 = await graphCall('GET', '/sites/' + graphSiteId + '/lists?$select=id,displayName&$top=200');
-    var lists2 = listsResp2.value || [];
-    console.log('Root site lists:', lists2.map(function(l){return l.displayName;}));
-    var missing = [];
-    needed.forEach(function(name) {
-      var f = lists2.find(function(l){return l.displayName===name;});
-      if (f) graphListIds[name] = f.id;
-      else missing.push(name);
-    });
-    if (missing.length > 0) throw new Error('Δεν βρέθηκαν τα lists: ' + missing.join(', '));
-  } catch(e) {
-    throw new Error('Δεν βρέθηκαν τα lists: ' + needed.join(', '));
-  }
+  if (!graphSiteId) throw new Error('Δεν βρέθηκε το site. Επικοινώνησε με τον IT.');
+
+  setLoading('Φόρτωση Lists...', 55);
+  // Assign known list IDs
+  Object.assign(graphListIds, KNOWN_LISTS);
+  console.log('Lists hardcoded:', graphListIds);
 }
 
 // ════════════════════════════════════════════════════
