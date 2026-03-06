@@ -1836,7 +1836,7 @@ function exportRawExcel(){
   showToast('Export: '+allRaw.length+' εγγραφές','#166534');
 }
 
-{cancelled:'✗ Ακυρώθηκε',norenewal:'🚫 Δεν Ανανέωσε',replaced:'🔄 Αλλού',noresp:'👻 Δεν Απάντησε',paid_sent:'✓ Ολοκληρώθηκε'};
+var archiveStatusLabels = {cancelled:'✗ Ακυρώθηκε',norenewal:'🚫 Δεν Ανανέωσε',replaced:'🔄 Αλλού',noresp:'👻 Δεν Απάντησε',paid_sent:'✓ Ολοκληρώθηκε'};
 function getArchiveStatus(id){
   var entries=actLog.filter(function(e){return e.policy===records.find(function(r){return r.id===id;})||''.policy||e.client===(records.find(function(r){return r.id===id;})||{}).client;});
   for(var t of ['cancelled','norenewal','replaced','noresp']){if(entries.find(function(e){return e.type===t;}))return t;}
