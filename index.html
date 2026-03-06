@@ -1,0 +1,1999 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PK · Renewals Hub — LIVE</title>
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f5f7;--white:#fff;--border:#dde1e9;--border2:#bec5d1;
+  --text:#0f1623;--text2:#445166;--text3:#8b95a8;
+  --red:#b91c1c;--red-bg:#fef2f2;--red-light:#fecaca;
+  --orange:#c2410c;--orange-bg:#fff7ed;--orange-light:#fed7aa;
+  --yellow:#92400e;--yellow-bg:#fefce8;--yellow-light:#fde68a;
+  --green:#166534;--green-bg:#f0fdf4;--green-light:#bbf7d0;
+  --blue:#1d4ed8;--blue-bg:#eff6ff;--blue-light:#bfdbfe;
+  --purple:#6d28d9;--purple-bg:#f5f3ff;--purple-light:#ddd6fe;
+  --teal:#0f766e;--teal-bg:#f0fdfa;--teal-light:#99f6e4;
+  --note:#b45309;--note-bg:#fffbeb;--note-light:#fde68a;
+  --navy:#0f172a;--navy2:#1e293b;
+  --proposal:#ea580c;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.4;}
+mono{font-family:'IBM Plex Mono',monospace;}
+
+/* ── STICKY HEADER ── */
+.sticky{position:sticky;top:0;z-index:200;box-shadow:0 1px 0 var(--border),0 4px 12px rgba(0,0,0,0.06);}
+.topbar{height:46px;background:var(--navy);display:flex;align-items:center;padding:0 18px;gap:12px;}
+.logo{font-weight:700;font-size:14px;color:#fff;letter-spacing:-0.3px;font-family:'IBM Plex Mono',monospace;}
+.logo span{color:#60a5fa;}
+.tb-div{width:1px;height:16px;background:#334155;}
+.tb-lbl{font-size:11px;color:#64748b;}
+.tb-date{font-size:11px;color:#94a3b8;background:#1e293b;padding:2px 9px;border-radius:4px;font-family:'IBM Plex Mono',monospace;}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.u-av{width:27px;height:27px;background:#2563eb;color:#fff;border-radius:6px;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;}
+.u-name{font-size:11px;color:#94a3b8;}
+
+.search-bar{height:40px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:10px;}
+.srch-wrap{position:relative;flex:1;max-width:500px;}
+.srch-input{width:100%;padding:5px 12px 5px 30px;border:1.5px solid var(--border2);border-radius:6px;font-size:12px;font-family:'IBM Plex Sans',sans-serif;color:var(--text);background:var(--bg);}
+.srch-input:focus{outline:none;border-color:var(--blue);background:#fff;}
+.srch-ico{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:12px;pointer-events:none;}
+.srch-hint{font-size:11px;color:var(--text3);}
+.srch-drop{position:absolute;top:calc(100%+3px);left:0;right:0;background:#fff;border:1px solid var(--border2);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.1);z-index:500;max-height:280px;overflow-y:auto;display:none;}
+.sd-item{padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;gap:8px;align-items:center;}
+.sd-item:hover{background:var(--blue-bg);}
+.sd-item:last-child{border:none;}
+.sd-name{font-weight:600;font-size:12px;}
+.sd-meta{font-size:10px;color:var(--text2);margin-top:1px;}
+.sd-tag{font-size:9px;background:var(--blue-bg);color:var(--blue);padding:1px 5px;border-radius:4px;}
+
+.tabs{height:38px;background:#fff;border-bottom:2px solid var(--border);display:flex;padding:0 18px;overflow-x:auto;}
+.tab{padding:0 12px;height:100%;font-size:11px;font-weight:500;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;display:flex;align-items:center;gap:5px;white-space:nowrap;}
+.tab:hover{color:var(--blue);}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:700;}
+.tbadge{font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;}
+.tbadge.red{background:var(--red-bg);color:var(--red);}
+.tbadge.blue{background:var(--blue-bg);color:var(--blue);}
+.tbadge.org{background:var(--orange-bg);color:var(--orange);}
+.tbadge.teal{background:var(--teal-bg);color:var(--teal);}
+.tbadge.pur{background:var(--purple-bg);color:var(--purple);}
+.tbadge.grn{background:var(--green-bg);color:var(--green);}
+
+.sum-bar{background:#fff;border-bottom:1px solid var(--border);padding:5px 18px;display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
+.sp{padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid;white-space:nowrap;}
+.sp.red{background:var(--red-bg);color:var(--red);border-color:var(--red-light);}
+.sp.org{background:var(--orange-bg);color:var(--orange);border-color:var(--orange-light);}
+.sp.yel{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow-light);}
+.sp.grn{background:var(--green-bg);color:var(--green);border-color:var(--green-light);}
+.sp.blu{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-light);}
+.prog-wrap{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:10px;color:var(--text2);}
+.prog-bar{width:90px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.prog-fill{height:100%;background:var(--green);border-radius:2px;transition:width 0.4s;}
+
+/* ── PAGES ── */
+.page{display:none;padding:12px 18px;}
+.page.active{display:block;}
+
+/* ── BUCKET ── */
+.bucket{margin-bottom:8px;border-radius:6px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.bkt-hdr{display:flex;align-items:center;gap:7px;padding:7px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;cursor:pointer;user-select:none;}
+.bkt-cnt{font-size:9px;padding:1px 6px;border-radius:4px;background:rgba(255,255,255,0.55);font-weight:700;}
+.bkt-chev{margin-left:auto;font-size:8px;transition:transform 0.2s;}
+.bkt-body{background:#fff;border:1px solid;border-top:none;border-radius:0 0 6px 6px;}
+.bucket.sos .bkt-hdr{background:#fef2f2;color:var(--red);border:1px solid var(--red-light);}
+.bucket.sos .bkt-body{border-color:var(--red-light);}
+.bucket.warn .bkt-hdr{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-light);}
+.bucket.warn .bkt-body{border-color:var(--orange-light);}
+.bucket.pend .bkt-hdr{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow-light);}
+.bucket.pend .bkt-body{border-color:var(--yellow-light);}
+.bucket.sent .bkt-hdr{background:var(--green-bg);color:var(--green);border:1px solid var(--green-light);}
+.bucket.sent .bkt-body{border-color:var(--green-light);}
+.bucket.ntc .bkt-hdr{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-light);}
+.bucket.ntc .bkt-body{border-color:var(--blue-light);}
+.bucket.snz .bkt-hdr{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-light);}
+.bucket.snz .bkt-body{border-color:var(--purple-light);}
+.bkt-body.hidden{display:none;}
+.empty-row{padding:10px 14px;font-size:11px;color:var(--text3);font-style:italic;}
+
+/* GROUP SEP */
+.grp-sep{background:#f0f6ff;border-bottom:1px solid var(--border);padding:5px 12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+.grp-lbl{font-size:10px;font-weight:700;color:var(--blue);}
+.grp-cnt{font-size:9px;color:var(--text3);background:var(--border);padding:1px 6px;border-radius:8px;}
+.grp-btn{margin-left:auto;padding:3px 10px;border-radius:4px;font-size:10px;font-weight:600;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-light);cursor:pointer;}
+.grp-btn:hover{background:var(--blue);color:#fff;}
+
+/* ACTION CARD */
+.acard{display:grid;grid-template-columns:3px 96px 155px 100px 82px 1fr 220px;min-height:54px;border-bottom:1px solid var(--border);align-items:center;transition:background 0.08s;}
+.acard:last-child{border-bottom:none;}
+.acard:hover{background:#f8fbff;}
+.acard.hl{background:#fffbeb!important;animation:hlpulse 2s ease-out forwards;}
+@keyframes hlpulse{0%{background:#fef9c3}100%{background:#fffbeb}}
+.ac-stripe{align-self:stretch;}
+.bucket.sos .ac-stripe{background:var(--red);}
+.bucket.warn .ac-stripe{background:var(--orange);}
+.bucket.pend .ac-stripe{background:#ca8a04;}
+.bucket.sent .ac-stripe{background:var(--green);}
+.bucket.ntc .ac-stripe{background:var(--blue);}
+.bucket.snz .ac-stripe{background:var(--purple);}
+
+.ac-exp{padding:0 8px;}
+.exp-date{font-size:12px;font-weight:600;font-family:'IBM Plex Mono',monospace;}
+.exp-days{font-size:9px;font-weight:600;margin-top:1px;}
+.exp-late .exp-date,.exp-late .exp-days{color:var(--red);}
+.exp-soon .exp-date,.exp-soon .exp-days{color:var(--orange);}
+.exp-ok .exp-date{color:var(--text);}
+.exp-ok .exp-days{color:var(--text3);}
+.exp-snz .exp-date{color:var(--purple);}
+.exp-snz .exp-days{color:var(--purple);}
+
+.ac-cli{padding:0 8px;border-left:1px solid var(--border);}
+.cli-n{font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:148px;}
+.cli-sub{font-size:9px;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin-top:2px;display:flex;gap:3px;align-items:center;flex-wrap:wrap;}
+.pill{display:inline-flex;align-items:center;font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;}
+.pill.so{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-light);}
+.pill.mp{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;cursor:pointer;}
+.pill.prop{background:#fff7ed;color:var(--proposal);border:1px solid #fed7aa;}
+.pill.od{background:#f5f3ff;color:var(--purple);border:1px solid var(--purple-light);}
+.pill.snz{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-light);}
+.note-pill{display:flex;align-items:center;gap:2px;font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--note-bg);color:var(--note);border:1px solid var(--note-light);cursor:pointer;margin-top:2px;}
+
+.ac-ins{padding:0 8px;border-left:1px solid var(--border);}
+.ins-n{font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:96px;}
+.ins-b{font-size:9px;color:var(--text2);margin-top:1px;}
+
+.ac-amt{padding:0 8px;border-left:1px solid var(--border);}
+.amt-v{font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace;}
+.credit-fl{font-size:9px;color:var(--orange);font-weight:600;margin-top:2px;}
+
+.ac-info{padding:0 8px;border-left:1px solid var(--border);}
+.bdg-row{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:3px;}
+.bdg{display:inline-flex;align-items:center;padding:1px 6px;border-radius:5px;font-size:9px;font-weight:700;}
+.bdg.paid{background:var(--green-bg);color:var(--green);}
+.bdg.unpaid{background:var(--red-bg);color:var(--red);}
+.bdg.pendg{background:var(--yellow-bg);color:var(--yellow);}
+.bdg.sos{background:var(--red-bg);color:var(--red);animation:blink 1.8s infinite;}
+.bdg.promise{background:var(--orange-bg);color:var(--orange);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.ef{display:flex;align-items:center;gap:2px;font-size:10px;color:var(--blue);cursor:pointer;padding:1px 3px;border-radius:3px;max-width:185px;white-space:nowrap;overflow:hidden;}
+.ef:hover{background:var(--blue-bg);}
+.last-act{font-size:9px;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin-top:2px;}
+
+.ac-act{padding:0 6px;border-left:1px solid var(--border);display:flex;gap:3px;flex-wrap:wrap;align-items:center;}
+.btn{padding:3px 7px;border-radius:4px;font-size:10px;font-weight:600;border:none;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;white-space:nowrap;transition:all 0.1s;display:inline-flex;align-items:center;gap:2px;}
+.btn:hover{filter:brightness(.92);transform:translateY(-1px);}
+.btn.mail{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-light);}
+.btn.call{background:var(--green-bg);color:var(--green);border:1px solid var(--green-light);}
+.btn.paid{background:var(--green);color:#fff;}
+.btn.send{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-light);}
+.btn.chk{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow-light);}
+.btn.cncl{background:var(--red-bg);color:var(--red);border:1px solid var(--red-light);}
+.btn.nrn{background:var(--bg);color:var(--text2);border:1px solid var(--border2);}
+.btn.repl{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-light);}
+.btn.nore{background:var(--bg);color:var(--text3);border:1px solid var(--border);}
+.btn.snz{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-light);}
+.btn.trail{background:var(--bg);color:var(--text2);border:1px solid var(--border2);}
+.btn.tmpl{background:#fffbeb;color:var(--note);border:1px solid var(--note-light);}
+.btn.mech{background:var(--purple);color:#fff;}
+.btn.promo{background:var(--green);color:#fff;}
+
+/* COPY */
+.cpw{display:inline-flex;align-items:center;gap:2px;cursor:pointer;padding:1px 3px;border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:10px;}
+.cpw:hover{background:var(--blue-bg);}
+.cpw .ci{font-size:9px;color:var(--text3);opacity:0;}
+.cpw:hover .ci{opacity:1;}
+
+/* ── TRAIL PANEL (slide-in) ── */
+.trail-overlay{position:fixed;inset:0;z-index:700;display:none;}
+.trail-overlay.open{display:block;}
+.trail-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.3);}
+.trail-panel{position:absolute;right:0;top:0;bottom:0;width:480px;max-width:95vw;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.12);display:flex;flex-direction:column;}
+.trail-hdr{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;}
+.trail-title{font-size:14px;font-weight:700;}
+.trail-sub{font-size:11px;color:var(--text2);margin-top:2px;}
+.trail-close{margin-left:auto;padding:4px 10px;border-radius:4px;border:1px solid var(--border2);background:var(--bg);font-size:11px;cursor:pointer;}
+.trail-body{flex:1;overflow-y:auto;padding:12px 18px;}
+.trail-entry{display:flex;gap:10px;margin-bottom:14px;position:relative;}
+.trail-entry:not(:last-child)::before{content:'';position:absolute;left:13px;top:26px;bottom:-14px;width:1px;background:var(--border);}
+.trail-dot{width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid;}
+.trail-dot.mail{background:var(--blue-bg);border-color:var(--blue-light);color:var(--blue);}
+.trail-dot.call{background:var(--green-bg);border-color:var(--green-light);color:var(--green);}
+.trail-dot.paid{background:var(--green-bg);border-color:var(--green-light);color:var(--green);}
+.trail-dot.policy{background:var(--purple-bg);border-color:var(--purple-light);color:var(--purple);}
+.trail-dot.cancelled,.trail-dot.norenewal,.trail-dot.noresp{background:var(--red-bg);border-color:var(--red-light);color:var(--red);}
+.trail-dot.replaced{background:var(--teal-bg);border-color:var(--teal-light);color:var(--teal);}
+.trail-dot.bulk{background:#fef3c7;border-color:#fde68a;color:#92400e;}
+.trail-dot.snooze{background:var(--purple-bg);border-color:var(--purple-light);color:var(--purple);}
+.trail-dot.note{background:var(--note-bg);border-color:var(--note-light);color:var(--note);}
+.trail-info{flex:1;}
+.trail-action{font-size:12px;font-weight:600;}
+.trail-detail{font-size:11px;color:var(--text2);margin-top:2px;}
+.trail-time{font-size:10px;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin-top:2px;}
+.trail-empty{text-align:center;padding:30px;color:var(--text3);font-size:13px;}
+
+/* ── TEMPLATE MODAL INNER ── */
+.tmpl-opts{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.tmpl-opt{border:1.5px solid var(--border2);border-radius:6px;padding:10px 12px;cursor:pointer;transition:all .15s;}
+.tmpl-opt:hover{border-color:var(--blue);background:var(--blue-bg);}
+.tmpl-opt.sel{border-color:var(--blue);background:var(--blue-bg);}
+.tmpl-opt-title{font-weight:600;font-size:12px;}
+.tmpl-opt-desc{font-size:11px;color:var(--text2);margin-top:2px;}
+.tmpl-table{background:var(--bg);border-radius:6px;padding:10px 12px;font-size:11px;font-family:'IBM Plex Mono',monospace;line-height:2;}
+.tmpl-row{display:flex;gap:12px;}
+.tmpl-key{color:var(--text2);min-width:180px;}
+.tmpl-val{font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;}
+.tmpl-val.missing{color:var(--orange);font-style:italic;}
+.copy-all{width:100%;padding:8px;border-radius:6px;font-size:12px;font-weight:600;background:var(--blue);color:#fff;border:none;cursor:pointer;margin-top:10px;}
+
+/* ── SNOOZE MODAL INNER ── */
+.snooze-presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.snooze-p{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--bg);color:var(--text2);}
+.snooze-p:hover,.snooze-p.sel{background:var(--purple);color:#fff;border-color:var(--purple);}
+
+/* ── MONTHLY ── */
+.month-nav{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.mnav-btn{padding:4px 12px;border-radius:4px;border:1px solid var(--border2);background:#fff;font-size:11px;font-weight:600;cursor:pointer;}
+.mnav-btn:hover{background:var(--blue-bg);color:var(--blue);}
+.m-title{font-size:15px;font-weight:700;}
+.m-stats{margin-left:auto;display:flex;gap:5px;flex-wrap:wrap;}
+.mstat{padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600;border:1px solid;}
+.mstat.tot{background:var(--bg);color:var(--text2);border-color:var(--border2);}
+.mstat.unp{background:var(--red-bg);color:var(--red);border-color:var(--red-light);}
+.mstat.pai{background:var(--green-bg);color:var(--green);border-color:var(--green-light);}
+.mstat.nts{background:var(--note-bg);color:var(--note);border-color:var(--note-light);}
+.mday-grp{background:#fff;border-radius:6px;overflow:hidden;margin-bottom:7px;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
+.mday-hdr{padding:6px 12px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.mday-date{font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace;}
+.mday-cnt{font-size:9px;padding:1px 6px;border-radius:6px;background:var(--border);color:var(--text2);}
+.mday-tot{margin-left:auto;font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace;}
+.mcard{display:grid;grid-template-columns:3px 148px 108px 82px 72px 80px 1fr 110px;min-height:44px;border-bottom:1px solid var(--border);align-items:center;}
+.mcard:last-child{border-bottom:none;}
+.mcard:hover{background:#f8fbff;}
+.mcard.hl{background:#fffbeb!important;}
+.mcard .ms{align-self:stretch;}
+.ms.paid{background:var(--green);}
+.ms.unpaid{background:var(--orange);}
+.ms.pend{background:#ca8a04;}
+.note-add{font-size:10px;color:var(--text3);cursor:pointer;padding:2px 4px;}
+.note-add:hover{color:var(--note);}
+.note-prev{font-size:10px;color:var(--note);background:var(--note-bg);border:1px solid var(--note-light);border-radius:4px;padding:2px 7px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
+.note-editor{background:var(--note-bg);border-top:1px solid var(--note-light);padding:8px 12px;display:none;gap:7px;}
+.note-editor.open{display:flex;}
+.note-ta{flex:1;padding:6px 9px;border:1px solid var(--note-light);border-radius:5px;font-size:11px;font-family:'IBM Plex Sans',sans-serif;color:var(--text);background:#fff;resize:none;min-height:50px;}
+.note-ta:focus{outline:none;border-color:var(--note);}
+.note-actions{display:flex;flex-direction:column;gap:4px;}
+.note-save-btn{padding:5px 10px;border-radius:5px;font-size:11px;font-weight:600;background:var(--note);color:#fff;border:none;cursor:pointer;}
+.note-cancel-btn{padding:5px 10px;border-radius:5px;font-size:11px;background:var(--bg);color:var(--text2);border:1px solid var(--border2);cursor:pointer;}
+
+/* ── LOG ── */
+.log-filters{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap;}
+.lf{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:#fff;color:var(--text2);}
+.lf.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+.log-tbl{background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.log-thead{display:grid;grid-template-columns:120px 45px 95px 150px 1fr 80px 110px;background:var(--bg);padding:6px 0;border-bottom:1px solid var(--border2);}
+.log-th{padding:0 8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);}
+.log-row{display:grid;grid-template-columns:120px 45px 95px 150px 1fr 80px 110px;padding:8px 0;border-bottom:1px solid var(--border);align-items:center;}
+.log-row:hover{background:#f8fbff;}
+.log-row:last-child{border:none;}
+.atag{display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:5px;font-size:9px;font-weight:700;}
+.atag.mail{background:var(--blue-bg);color:var(--blue);}
+.atag.call{background:var(--green-bg);color:var(--green);}
+.atag.paid{background:var(--green-bg);color:var(--green);}
+.atag.policy{background:var(--purple-bg);color:var(--purple);}
+.atag.cancelled,.atag.norenewal,.atag.noresp{background:var(--bg);color:var(--text2);border:1px solid var(--border);}
+.atag.replaced{background:var(--teal-bg);color:var(--teal);}
+.atag.bulk{background:#fef3c7;color:#92400e;}
+.atag.snooze{background:var(--purple-bg);color:var(--purple);}
+.mst{font-size:10px;font-weight:600;}
+.mst.done{color:var(--green);}
+.mst.pend{color:var(--orange);cursor:pointer;text-decoration:underline;}
+.mst.na{color:var(--text3);}
+
+/* ── PENDING ── */
+.preg-card{display:grid;grid-template-columns:3px 1fr 180px;min-height:50px;border-bottom:1px solid var(--border);align-items:center;}
+.preg-card:hover{background:#fffbf0;}
+.preg-card:last-child{border:none;}
+.preg-info{padding:7px 10px;border-left:1px solid var(--border);}
+.preg-client{font-weight:600;font-size:12px;}
+.preg-detail{font-size:10px;color:var(--text2);margin-top:2px;}
+.preg-what{font-size:10px;font-weight:600;color:var(--orange);margin-top:3px;}
+.preg-acts{padding:0 10px;border-left:1px solid var(--border);display:flex;gap:5px;}
+
+/* ── SO ── */
+.so-info{background:var(--teal-bg);border:1px solid var(--teal-light);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--teal);margin-bottom:12px;}
+.so-tbl{background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.so-thead{display:grid;grid-template-columns:3px 110px 155px 105px 82px 115px 120px 1fr;background:var(--bg);padding:6px 0;border-bottom:1px solid var(--border2);}
+.so-th{padding:0 8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);}
+.so-row{display:grid;grid-template-columns:3px 110px 155px 105px 82px 115px 120px 1fr;min-height:46px;border-bottom:1px solid var(--border);align-items:center;}
+.so-row:hover{background:var(--teal-bg);}
+.so-row:last-child{border:none;}
+.so-st{align-self:stretch;background:var(--teal);}
+.so-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:5px;font-size:9px;font-weight:700;}
+.so-badge.active{background:var(--teal-bg);color:var(--teal);}
+.so-badge.pconf{background:var(--yellow-bg);color:var(--yellow);animation:blink 2s infinite;}
+.so-badge.exc{background:var(--red-bg);color:var(--red);}
+
+/* ── RAW ── */
+.raw-info{background:var(--purple-bg);border:1px solid var(--purple-light);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--purple);margin-bottom:12px;}
+.raw-tbl{background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.raw-thead{display:grid;grid-template-columns:28px 140px 120px 100px 65px 80px 85px 1fr;background:var(--bg);padding:6px 0;border-bottom:1px solid var(--border2);}
+.raw-th{padding:0 8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);}
+.raw-row{display:grid;grid-template-columns:28px 140px 120px 100px 65px 80px 85px 1fr;padding:7px 0;border-bottom:1px solid var(--border);align-items:center;}
+.raw-row:last-child{border:none;}
+.raw-row:hover{background:var(--bg);}
+.raw-row.nw{background:#fffde7;}
+.raw-row.prop{background:#fff7ed;}
+.rsrc{font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;}
+.rsrc.mv{background:var(--blue-bg);color:var(--blue);}
+.rsrc.pt{background:var(--purple-bg);color:var(--purple);}
+.rsrc.mn{background:var(--green-bg);color:var(--green);}
+
+/* ── KPIs ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+.kpi-card{background:#fff;border-radius:6px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.kpi-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:6px;}
+.kpi-val{font-size:24px;font-weight:700;font-family:'IBM Plex Mono',monospace;}
+.kpi-sub{font-size:10px;color:var(--text2);margin-top:3px;}
+.kpi-pct{font-size:11px;font-weight:700;margin-top:4px;}
+.kpi-pct.good{color:var(--green);}
+.kpi-pct.warn{color:var(--orange);}
+.kpi-bar-wrap{height:4px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden;}
+.kpi-bar-fill{height:100%;border-radius:2px;}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:600;display:none;align-items:center;justify-content:center;}
+.overlay.open{display:flex;}
+.modal{background:#fff;border-radius:8px;width:520px;max-width:95vw;box-shadow:0 16px 48px rgba(0,0,0,.18);overflow:hidden;max-height:90vh;display:flex;flex-direction:column;}
+.modal-hdr{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;flex-shrink:0;}
+.m-icon{font-size:18px;}
+.m-title{font-size:14px;font-weight:700;}
+.m-sub{font-size:11px;color:var(--text2);margin-top:2px;}
+.modal-body{padding:16px 18px;overflow-y:auto;flex:1;}
+.modal-foot{padding:10px 18px;border-top:1px solid var(--border);display:flex;gap:7px;justify-content:flex-end;flex-shrink:0;}
+.mf{margin-bottom:12px;}
+.ml{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:4px;}
+.msel{width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:5px;font-size:12px;font-family:'IBM Plex Sans',sans-serif;color:var(--text);}
+.minp{width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:5px;font-size:12px;font-family:'IBM Plex Sans',sans-serif;color:var(--text);}
+.mdate{padding:7px 10px;border:1px solid var(--border2);border-radius:5px;font-size:12px;font-family:'IBM Plex Sans',sans-serif;}
+.minfo{background:var(--blue-bg);border:1px solid var(--blue-light);border-radius:5px;padding:8px 11px;font-size:11px;color:var(--blue);margin-bottom:12px;}
+.mwarn{background:var(--orange-bg);border:1px solid var(--orange-light);border-radius:5px;padding:8px 11px;font-size:11px;color:var(--orange);margin-bottom:12px;}
+.mbtn{padding:6px 16px;border-radius:5px;font-size:12px;font-weight:600;border:none;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;}
+.mbtn.primary{background:var(--blue);color:#fff;}
+.mbtn.secondary{background:var(--bg);color:var(--text);border:1px solid var(--border2);}
+.mbtn.danger{background:var(--red);color:#fff;}
+.mbtn.success{background:var(--green);color:#fff;}
+.mbtn.teal{background:var(--teal);color:#fff;}
+.mbtn.snz{background:var(--purple);color:#fff;}
+.mbtn.tmpl{background:var(--note);color:#fff;}
+
+.mpol-opt{border:1.5px solid var(--border2);border-radius:6px;padding:10px 12px;margin-bottom:6px;cursor:pointer;}
+.mpol-opt:hover{border-color:var(--blue);background:var(--blue-bg);}
+.mpol-opt.sel{border-color:var(--blue);background:var(--blue-bg);}
+.mpol-title{font-weight:600;font-size:12px;margin-bottom:2px;}
+.mpol-desc{font-size:11px;color:var(--text2);}
+.mpol-list{background:var(--bg);border-radius:5px;padding:7px 9px;margin-top:6px;font-size:10px;font-family:'IBM Plex Mono',monospace;line-height:1.7;color:var(--text2);}
+
+.toast{position:fixed;bottom:18px;right:18px;padding:9px 16px;border-radius:6px;font-size:12px;font-weight:500;box-shadow:0 4px 14px rgba(0,0,0,.16);z-index:999;display:none;color:#fff;max-width:340px;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+</style>
+</head>
+<body>
+<!-- LOGIN OVERLAY -->
+<div id="loginOverlay" style="position:fixed;inset:0;background:#0f172a;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;">
+  <div style="text-align:center">
+    <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;font-family:'IBM Plex Sans',sans-serif">PK · RENEWALS HUB</div>
+    <div style="font-size:13px;color:#94a3b8;margin-top:6px;font-family:'IBM Plex Sans',sans-serif">Σύστημα Διαχείρισης Ανανεώσεων</div>
+  </div>
+  <button id="loginBtn" onclick="doLogin()" style="background:#2563eb;color:#fff;border:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:center;gap:8px;">
+    🔐 Σύνδεση με εταιρικό λογαριασμό Microsoft
+  </button>
+  <div id="loginError" style="color:#f87171;font-size:12px;display:none;font-family:'IBM Plex Sans',sans-serif;max-width:360px;text-align:center"></div>
+</div>
+<!-- LOADING OVERLAY -->
+<div id="loadingOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.88);z-index:9998;align-items:center;justify-content:center;flex-direction:column;gap:14px;">
+  <div style="color:#fff;font-size:14px;font-weight:600;font-family:'IBM Plex Sans',sans-serif" id="loadingMsg">Φόρτωση δεδομένων...</div>
+  <div style="width:240px;height:5px;background:#1e293b;border-radius:3px;overflow:hidden">
+    <div id="loadBar" style="height:100%;background:#2563eb;width:0%;transition:width 0.4s"></div>
+  </div>
+  <div id="loadDetail" style="color:#64748b;font-size:11px;font-family:'IBM Plex Sans',sans-serif"></div>
+</div>
+<!-- APP (hidden until authenticated) -->
+<div id="appWrap" style="display:none">
+
+<div class="sticky">
+  <div class="topbar">
+    <div class="logo">PK<span>·</span>RENEWALS HUB</div>
+    <div class="tb-div"></div>
+    <div class="tb-lbl">v6.2 · LIVE</div>
+    <div class="tb-date" id="todayDisplay"></div>
+    <div class="tb-right">
+      <div class="u-av">KK</div>
+      <div class="u-name">kk@pkinsurance.gr</div>
+    </div>
+  </div>
+  <div class="search-bar">
+    <div class="srch-wrap">
+      <span class="srch-ico">&#128269;</span>
+      <input class="srch-input" id="sInput" placeholder="Αναζήτηση: όνομα, συμβόλαιο, πινακίδα, email, τηλέφωνο, γονική..." oninput="doSearch(this.value)" onblur="setTimeout(hideSearch,200)">
+      <div class="srch-drop" id="sRes"></div>
+    </div>
+    <span class="srch-hint">Αναζητά σε όλα τα πεδία · σε κάθε tab</span>
+  </div>
+  <div class="tabs" id="mainTabs">
+    <div class="tab active" id="tab-queue" onclick="switchTab('queue')">&#9889; TODAY QUEUE <span class="tbadge red" id="tb-q">—</span></div>
+    <div class="tab" id="tab-monthly" onclick="switchTab('monthly')">&#128197; Μηνιαία Εικόνα <span class="tbadge blue" id="tb-m">—</span></div>
+    <div class="tab" id="tab-so" onclick="switchTab('so')">&#128309; Πάγιες <span class="tbadge teal" id="tb-so">4</span></div>
+    <div class="tab" id="tab-raw" onclick="switchTab('raw')">&#128229; RAW <span class="tbadge pur" id="tb-raw">5</span></div>
+    <div class="tab" id="tab-log" onclick="switchTab('log')">&#128203; Activity Log <span class="tbadge blue" id="tb-log">0</span></div>
+    <div class="tab" id="tab-pend" onclick="switchTab('pend')">&#9888; Εκκρ. Μηχ/φηση <span class="tbadge org" id="tb-pend">0</span></div>
+    <div class="tab" id="tab-kpi" onclick="switchTab('kpi')">&#128200; KPIs</div>
+    <div class="tab" id="tab-archive" onclick="switchTab('archive')">&#128451; Αρχείο <span class="tbadge" style="background:#f1f5f9;color:#475569" id="tb-archive">—</span></div>
+  </div>
+  <div class="sum-bar" id="sumBar">
+    <div class="sp red" onclick="scrollB('sos')">&#128680; SOS</div>
+    <div class="sp org" onclick="scrollB('warn')">&#9888; Near Expiry</div>
+    <div class="sp yel" onclick="scrollB('pend')">&#9203; Pending</div>
+    <div class="sp grn" onclick="scrollB('sent')">&#10003; Send Policy</div>
+    <div class="sp blu" onclick="scrollB('ntc')">&#9993; Notices</div>
+    <div class="sp" style="background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-light)" onclick="scrollB('snz')">&#128336; Snoozed</div>
+    <div class="prog-wrap"><span id="progTxt">0/0</span><div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div></div>
+  </div>
+</div>
+
+<div class="page active" id="page-queue"><div id="bucketsWrap"></div></div>
+<div class="page" id="page-monthly">
+  <div class="month-nav">
+    <button class="mnav-btn" onclick="changeMonth(-1)">&#9664; Προηγ.</button>
+    <div class="m-title" id="monthTitle"></div>
+    <button class="mnav-btn" onclick="changeMonth(1)">Επόμ. &#9654;</button>
+    <div class="m-stats" id="mStats"></div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;padding:0 2px">
+    <span style="font-size:11px;color:var(--text3)">Ομαδοποίηση:</span>
+    <button class="btn mail" id="grpDate" style="font-size:10px;padding:3px 10px" onclick="setGrouping('date')">📅 Ημερομηνία</button>
+    <button class="btn trail" id="grpIns" style="font-size:10px;padding:3px 10px" onclick="setGrouping('insurer')">🏢 Ασφαλιστική</button>
+    <button class="btn trail" id="grpBrn" style="font-size:10px;padding:3px 10px" onclick="setGrouping('branch')">📋 Κλάδος</button>
+    <div style="flex:1"></div>
+    <select id="monthExportFilter" class="msel" style="font-size:10px;padding:3px 8px;width:200px">
+      <option value="all">Εξαγωγή: Όλες οι εγγραφές</option>
+      <option value="missing_kip">Λείπει ΚΗΠ</option>
+      <option value="missing_email">Λείπει Email</option>
+      <option value="missing_phone">Λείπει Τηλέφωνο</option>
+      <option value="missing_policy">Λείπει Αρ. Συμβολαίου</option>
+      <option value="missing_plate">Λείπει Πινακίδα</option>
+      <option value="unpaid">Μόνο Απλήρωτα</option>
+      <option value="paid">Μόνο Εξοφλημένα</option>
+    </select>
+    <button class="btn chk" style="font-size:10px;padding:3px 12px" onclick="exportMonthlyExcel()">&#128229; Export Excel</button>
+  </div>
+  <div id="monthGrid"></div>
+</div>
+<div class="page" id="page-so">
+  <div class="so-info"><strong>&#128309; Μητρώο Πάγιων Εντολών</strong> — Μόνιμο αρχείο. Κάθε χρόνο εμφανίζεται αυτόματα "προηγούμενη πάγια — επιβεβαίωση;"</div>
+  <div class="so-tbl"><div class="so-thead"><div class="so-th"></div><div class="so-th">Λήξη</div><div class="so-th">Πελάτης</div><div class="so-th">Ασφαλιστική</div><div class="so-th">Ασφάλιστρα</div><div class="so-th">Status</div><div class="so-th">Επιβεβ.</div><div class="so-th">Ενέργεια</div></div><div id="soBody"></div></div>
+</div>
+<div class="page" id="page-raw">
+  <div class="raw-info">
+    <strong>&#128229; RAW Data</strong> — Import από iView (Excel/CSV). Συμπλήρωσε inline: Γονική, Email, Τηλ., CC, ΚΗΠ (αν υπάρχει), Notes. <strong style="color:var(--proposal)">&#9888; ΠΡΟΤΑΣΗ ΑΝΑΝΕΩΣΗΣ</strong> = πορτοκαλί σήμανση — αν πληρωθεί, <u>άλλαξε τύπο στο iView</u>.
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+    <button class="btn mail" onclick="showToast('Import — σύνδεση με iView Excel/CSV','#1d4ed8')">&#128229; Import iView</button>
+    <button class="btn promo" onclick="promoteAll()">&#11014; Promote Όλα τα Νέα</button>
+    <div style="flex:1"></div>
+    <span style="font-size:11px;color:var(--text3);white-space:nowrap">Εξαγωγή — Λήξη από:</span>
+    <input type="date" id="rawExFrom" class="minp" style="width:130px;padding:4px 8px;font-size:11px;background:#fff;border:1px solid var(--border2);border-radius:5px;color:var(--text1)">
+    <span style="font-size:11px;color:var(--text3)">έως:</span>
+    <input type="date" id="rawExTo" class="minp" style="width:130px;padding:4px 8px;font-size:11px;background:#fff;border:1px solid var(--border2);border-radius:5px;color:var(--text1)">
+    <select id="rawExFilter" class="msel" style="font-size:10px;padding:4px 8px;width:170px">
+      <option value="all">Όλες οι εγγραφές</option>
+      <option value="new">Μόνο Νέες (New)</option>
+      <option value="promoted">Μόνο Promoted</option>
+      <option value="dup">Μόνο Διπλότυπα</option>
+      <option value="missing_kip">Λείπει ΚΗΠ</option>
+      <option value="missing_email">Λείπει Email</option>
+      <option value="missing_policy">Λείπει Αρ. Συμβολαίου</option>
+      <option value="proposal">ΠΡΟΤΑΣΕΙΣ ΑΝΑΝΕΩΣΗΣ</option>
+    </select>
+    <button class="btn chk" style="font-size:10px;padding:4px 12px" onclick="exportRawExcel()">&#128229; Export Excel</button>
+  </div>
+  <div class="raw-tbl"><div class="raw-thead"><div class="raw-th">#</div><div class="raw-th">Πελάτης</div><div class="raw-th">Ασφαλιστική / Κλάδος</div><div class="raw-th">Αρ. Συμβολαίου</div><div class="raw-th">Λήξη</div><div class="raw-th">Ασφάλιστρα</div><div class="raw-th">Πηγή</div><div class="raw-th">Status</div></div><div id="rawBody"></div></div>
+</div>
+<div class="page" id="page-log">
+  <div class="log-filters">
+    <div class="lf active" onclick="filterLog('all',this)">Όλες</div>
+    <div class="lf" onclick="filterLog('mail',this)">Mails</div>
+    <div class="lf" onclick="filterLog('call',this)">Calls</div>
+    <div class="lf" onclick="filterLog('paid',this)">Πληρωμές</div>
+    <div class="lf" onclick="filterLog('close',this)">Κλεισίματα</div>
+    <div class="lf" onclick="filterLog('snooze',this)">Snooze</div>
+    <div class="lf" onclick="filterLog('mech',this)">&#9888; Εκκρ.Μηχ/φηση</div>
+  </div>
+  <div class="log-tbl"><div class="log-thead"><div class="log-th">Ημ/νία · Ώρα</div><div class="log-th">User</div><div class="log-th">Ενέργεια</div><div class="log-th">Πελάτης</div><div class="log-th">Λεπτομέρεια</div><div class="log-th">Ποσό</div><div class="log-th">Μηχανογράφηση</div></div><div id="logBody"><div style="padding:18px;text-align:center;color:var(--text3)">Καμία ενέργεια ακόμα.</div></div></div>
+</div>
+<div class="page" id="page-pend">
+  <div style="margin-bottom:10px;font-size:12px;color:var(--text2)">Τακτοποίησε πριν κλείσεις. 📋 για copy-paste.</div>
+  <div class="bucket preg" style="margin-bottom:0">
+    <div class="bkt-hdr" style="background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-light)" onclick="toggleBkt(this)">&#9888; Εκκρεμείς Καταχωρήσεις <span class="bkt-cnt" id="pendCount">0</span><span class="bkt-chev">&#9660;</span></div>
+    <div class="bkt-body" id="pendBody"><div class="empty-row">&#10003; Όλα καταχωρήθηκαν!</div></div>
+  </div>
+</div>
+<div class="page" id="page-kpi"><div id="kpiBody"></div></div>
+<div class="page" id="page-archive">
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+    <input class="srch-input" id="archSearch" style="max-width:340px;padding:5px 10px;background:#fff;" placeholder="Αναζήτηση στο αρχείο..." oninput="renderArchive(this.value)">
+    <select id="archFilter" class="msel" style="width:160px;font-size:11px;padding:5px 8px;" onchange="renderArchive(document.getElementById('archSearch').value)">
+      <option value="all">Όλα</option>
+      <option value="paid">✓ PAID+Sent</option>
+      <option value="cancelled">✗ Ακυρωμένα</option>
+      <option value="norenewal">🚫 Δεν Ανανέωσαν</option>
+      <option value="replaced">🔄 Αλλού</option>
+      <option value="noresp">👻 Δεν Απάντησαν</option>
+    </select>
+    <span id="archCount" style="font-size:11px;color:var(--text3)"></span>
+  </div>
+  <div class="log-tbl">
+    <div style="display:grid;grid-template-columns:3px 155px 105px 110px 78px 80px 100px 1fr;background:var(--bg);padding:6px 0;border-bottom:1px solid var(--border2);">
+      <div class="log-th"></div><div class="log-th">Πελάτης</div><div class="log-th">Ασφαλιστική</div><div class="log-th">Αρ. Συμβολαίου</div><div class="log-th">Λήξη</div><div class="log-th">Ποσό</div><div class="log-th">Status</div><div class="log-th">Ενέργειες</div>
+    </div>
+    <div id="archBody"><div style="padding:18px;text-align:center;color:var(--text3)">Κανένα κλειστό συμβόλαιο ακόμα.</div></div>
+  </div>
+</div>
+
+<!-- TRAIL PANEL -->
+<div class="trail-overlay" id="trailOverlay">
+  <div class="trail-backdrop" onclick="closeTrail()"></div>
+  <div class="trail-panel">
+    <div class="trail-hdr">
+      <div><div class="trail-title" id="trailTitle">Ιστορικό</div><div class="trail-sub" id="trailSub"></div></div>
+      <button class="trail-close" onclick="closeTrail()">&#10005; Κλείσιμο</button>
+    </div>
+    <div class="trail-body" id="trailBody"></div>
+  </div>
+</div>
+
+<!-- MAIN MODAL -->
+<div class="overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-hdr"><div class="m-icon" id="mIcon"></div><div><div class="m-title" id="mTitle"></div><div class="m-sub" id="mSub"></div></div></div>
+    <div class="modal-body" id="mBody"></div>
+    <div class="modal-foot" id="mFoot"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════
+// REAL DATE
+// ════════════════════════════════════════════════════
+var TODAY = new Date();
+TODAY.setHours(0,0,0,0);
+
+function daysDiff(expStr) {
+  // expStr format: DD/MM/YYYY or DD/MM (assume current/next year)
+  var parts = expStr.split('/');
+  var d = parseInt(parts[0]), m = parseInt(parts[1])-1;
+  var y = parts[2] ? parseInt(parts[2]) : TODAY.getFullYear();
+  var exp = new Date(y, m, d);
+  return Math.round((exp - TODAY) / 86400000);
+}
+
+function fmtDate(d) {
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+}
+
+document.getElementById('todayDisplay').textContent = fmtDate(TODAY);
+
+// ════════════════════════════════════════════════════
+// DATA — expiry uses YYYY format now for real calc
+// ════════════════════════════════════════════════════
+// Use real dates relative to today for demo
+function relDate(days) {
+  var d = new Date(TODAY); d.setDate(d.getDate()+days);
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+}
+function relMonth(days) {
+  var d = new Date(TODAY); d.setDate(d.getDate()+days);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+
+var records = [];
+var soRegistry = [];
+var rawData = [];
+var actLog=[], pendRegs=[], closedIds={}, logFilter='all', currentModal=null;
+var currentMonth=TODAY.getFullYear()+'-'+String(TODAY.getMonth()+1).padStart(2,'0');
+var mailChoiceIds=[], mailChoiceOpt=1;
+
+// ════════════════════════════════════════════════════
+// MSAL + MICROSOFT GRAPH API
+// ════════════════════════════════════════════════════
+var MSAL_CONFIG = {
+  auth: {
+    clientId: '2fbdd869-965a-4e26-8dda-72b5ef785c32',
+    authority: 'https://login.microsoftonline.com/ae3a3a47-5cc9-4522-bfaf-179c8b5c2373',
+    redirectUri: window.location.href.split('?')[0].split('#')[0]
+  },
+  cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
+};
+var GRAPH_SCOPES = ['https://graph.microsoft.com/Sites.ReadWrite.All','https://graph.microsoft.com/User.Read'];
+var msalInstance, currentUser = {name:'', email:''};
+var graphSiteId = null, graphListIds = {};
+
+function initMSAL() {
+  msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
+  msalInstance.initialize().then(function() {
+    // Handle redirect response first
+    return msalInstance.handleRedirectPromise();
+  }).then(function(resp) {
+    if (resp && resp.account) {
+      msalInstance.setActiveAccount(resp.account);
+      currentUser.name = resp.account.name || resp.account.username;
+      currentUser.email = resp.account.username;
+    }
+    var accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+      if (!msalInstance.getActiveAccount()) msalInstance.setActiveAccount(accounts[0]);
+      var acc = msalInstance.getActiveAccount();
+      currentUser.name = acc.name || acc.username;
+      currentUser.email = acc.username;
+      showApp();
+      fetchAllData();
+    } else {
+      document.getElementById('loginOverlay').style.display = 'flex';
+    }
+  }).catch(function(e) {
+    console.error('MSAL init error:', e);
+    document.getElementById('loginOverlay').style.display = 'flex';
+  });
+}
+
+function doLogin() {
+  var btn = document.getElementById('loginBtn');
+  btn.textContent = '⏳ Ανακατεύθυνση...'; btn.disabled = true;
+  msalInstance.loginRedirect({ scopes: GRAPH_SCOPES }).catch(function(e) {
+    var err = document.getElementById('loginError');
+    err.textContent = 'Αποτυχία: ' + (e.errorMessage || e.message || 'Άγνωστο σφάλμα');
+    err.style.display = 'block';
+    btn.textContent = '🔐 Σύνδεση με εταιρικό λογαριασμό Microsoft'; btn.disabled = false;
+  });
+}
+
+function showApp() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('appWrap').style.display = 'block';
+  var av = document.querySelector('.u-av');
+  var un = document.querySelector('.u-name');
+  var initials = currentUser.name ? currentUser.name.split(' ').map(function(p){return p[0];}).join('').substring(0,2).toUpperCase() : 'KK';
+  if (av) av.textContent = initials;
+  if (un) un.textContent = currentUser.email;
+}
+
+async function getToken() {
+  var acc = msalInstance.getActiveAccount();
+  if (!acc) throw new Error('Not authenticated');
+  try {
+    var resp = await msalInstance.acquireTokenSilent({ scopes: GRAPH_SCOPES, account: acc });
+    return resp.accessToken;
+  } catch(e) {
+    await msalInstance.acquireTokenRedirect({ scopes: GRAPH_SCOPES });
+    return null; // page will redirect
+  }
+}
+
+async function graphCall(method, endpoint, body) {
+  var token = await getToken();
+  var opts = {
+    method: method,
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  var resp = await fetch('https://graph.microsoft.com/v1.0' + endpoint, opts);
+  if (!resp.ok) {
+    var errText = await resp.text();
+    throw new Error('Graph ' + method + ' ' + endpoint + ': ' + resp.status + ' ' + errText.substring(0,200));
+  }
+  if (resp.status === 204) return null;
+  return resp.json();
+}
+
+// ════════════════════════════════════════════════════
+// SITE & LIST DISCOVERY
+// ════════════════════════════════════════════════════
+async function discoverSiteAndLists() {
+  setLoading('Εντοπισμός SharePoint...', 10);
+  // Get personal site via OneDrive
+  var driveInfo = await graphCall('GET', '/me/drive');
+  var webUrl = driveInfo.webUrl; // e.g. https://tenant-my.sharepoint.com/personal/user
+  var url = new URL(webUrl);
+  var hostname = url.hostname;
+  var sitePath = url.pathname;
+  setLoading('Σύνδεση με SharePoint...', 20);
+  var siteInfo = await graphCall('GET', '/sites/' + hostname + ':' + sitePath);
+  graphSiteId = siteInfo.id;
+  setLoading('Φόρτωση Lists...', 30);
+  var listsResp = await graphCall('GET', '/sites/' + graphSiteId + '/lists?$select=id,displayName');
+  var lists = listsResp.value || [];
+  var needed = ['PK_Policies','PK_ActivityLog','PK_PendingReg','PK_SORegistry'];
+  var missing = [];
+  needed.forEach(function(name) {
+    var found = lists.find(function(l) { return l.displayName === name; });
+    if (found) graphListIds[name] = found.id;
+    else missing.push(name);
+  });
+  if (missing.length > 0) throw new Error('Δεν βρέθηκαν τα lists: ' + missing.join(', ') + '. Βεβαιώσου ότι τα δημιούργησες στο lists.microsoft.com');
+}
+
+// ════════════════════════════════════════════════════
+// DATE HELPERS
+// ════════════════════════════════════════════════════
+function isoToDisplay(isoStr) {
+  if (!isoStr) return '';
+  var d = new Date(isoStr);
+  if (isNaN(d)) return isoStr;
+  return String(d.getUTCDate()).padStart(2,'0') + '/' + String(d.getUTCMonth()+1).padStart(2,'0') + '/' + d.getUTCFullYear();
+}
+function displayToISO(displayStr) {
+  if (!displayStr) return null;
+  var p = displayStr.split('/');
+  if (p.length === 3) return p[2] + '-' + p[1].padStart(2,'0') + '-' + p[0].padStart(2,'0');
+  return null;
+}
+function expiryToMonth(expiry) {
+  if (!expiry) return currentMonth;
+  var p = expiry.split('/');
+  if (p.length === 3) return p[2] + '-' + p[1].padStart(2,'0');
+  return currentMonth;
+}
+
+// ════════════════════════════════════════════════════
+// DATA MAPPING: Graph ↔ App
+// ════════════════════════════════════════════════════
+function itemToRecord(item) {
+  var f = item.fields || {};
+  var expiry = isoToDisplay(f.Expiry || f.Expiry0);
+  var premNum = parseFloat(f.Premium) || 0;
+  var premStr = premNum ? String(premNum.toFixed(2)).replace('.',',') : '—';
+  return {
+    graphId: item.id,
+    id: parseInt(item.id) || item.id,
+    client: f.Title || f.Client || '',
+    insurer: f.Insurer || '',
+    branch: f.Branch || '',
+    policy: f.Policy || '',
+    plate: f.Plate || '',
+    parent: f.Parent || '',
+    email: f.Email || '',
+    phone: f.Phone || '',
+    ccEmail: f.CC_Email || '',
+    kip: f.KIP || '',
+    expiry: expiry,
+    month: f.Month || expiryToMonth(expiry),
+    premium: premStr,
+    premNum: premNum,
+    payment: f.Payment_Status || 'UNPAID',
+    sent: f.Sent ? 'YES' : 'NO',
+    note: f.Note || '',
+    isProposal: f.Is_Proposal || false,
+    hasSO: f.Has_SO || false,
+    snoozeUntil: isoToDisplay(f.Snooze_Until) || null,
+    snoozeActive: f.Snooze_Active || false,
+    snoozeNote: '',
+    closeReason: f.Close_Reason || '',
+    source: f.Source || '',
+    last: f.Last_Action || '—',
+    sos: false, hold: '', credit: false, soHistory: f.Has_SO || false,
+    promise: '', clientType: 'personal', isOD: false, code: f.KIP || ''
+  };
+}
+function logItemToLog(item) {
+  var f = item.fields || {};
+  return {
+    uid: item.id,
+    time: f.Timestamp || nowStr(),
+    user: f.User || 'KK',
+    type: f.Action_Type || '',
+    label: f.Action_Type || '',
+    detail: f.Detail || '',
+    amt: f.Amount || '',
+    client: f.Title || f.Client || '',
+    parent: f.Parent || '',
+    policy: f.Policy || '',
+    mechDone: !(f.Is_Closing),
+    needsMech: f.Is_Closing || false
+  };
+}
+function pendItemToPend(item) {
+  var f = item.fields || {};
+  return {
+    uid: item.id,
+    rid: '',
+    client: f.Title || f.Client || '',
+    policy: f.Policy || '',
+    insurer: '', premium: '', email: f.Email || '', phone: f.Phone || '', parent: '',
+    what: f.Message || '',
+    done: f.Done || false
+  };
+}
+function soItemToSO(item) {
+  var f = item.fields || {};
+  var expiry = isoToDisplay(f.Expiry || f.Expiry0);
+  var premNum = parseFloat(f.Premium) || 0;
+  return {
+    graphId: item.id,
+    id: parseInt(item.id) || item.id,
+    policy: f.Policy || '',
+    client: f.Title || f.Client || '',
+    insurer: f.Insurer || '',
+    branch: f.Branch || '',
+    expiry: expiry,
+    premium: premNum ? String(premNum.toFixed(2)).replace('.',',') : '—',
+    soStatus: f.SO_Status || 'active',
+    confirmed: f.Confirmed_At ? isoToDisplay(f.Confirmed_At) : '',
+    confirmThisYear: null,
+    period: f.Period || 'annual',
+    note: f.Note || ''
+  };
+}
+
+// ════════════════════════════════════════════════════
+// FETCH ALL DATA FROM GRAPH
+// ════════════════════════════════════════════════════
+async function fetchAllData() {
+  try {
+    await discoverSiteAndLists();
+    setLoading('Φόρτωση Συμβολαίων...', 40);
+    var polResp = await graphCall('GET', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_Policies'] + '/items?$expand=fields&$top=5000');
+    records = (polResp.value || []).map(itemToRecord);
+    setLoading('Φόρτωση Activity Log...', 60);
+    var logResp = await graphCall('GET', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_ActivityLog'] + '/items?$expand=fields&$top=5000&$orderby=fields/Timestamp desc');
+    actLog = (logResp.value || []).map(logItemToLog);
+    setLoading('Φόρτωση Εκκρεμών...', 75);
+    var pendResp = await graphCall('GET', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_PendingReg'] + '/items?$expand=fields&$top=2000');
+    pendRegs = (pendResp.value || []).map(pendItemToPend);
+    setLoading('Φόρτωση Πάγιων Εντολών...', 88);
+    var soResp = await graphCall('GET', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_SORegistry'] + '/items?$expand=fields&$top=2000');
+    soRegistry = (soResp.value || []).map(soItemToSO);
+    setLoading('Έτοιμο!', 100);
+    setTimeout(function() {
+      document.getElementById('loadingOverlay').style.display = 'none';
+      renderQueue(); renderLog(); renderPend(); renderKPI(); renderSO(); updateBadges();
+    }, 400);
+  } catch(e) {
+    document.getElementById('loadingOverlay').style.display = 'none';
+    showToast('⚠️ Σφάλμα φόρτωσης: ' + e.message, '#b91c1c');
+    console.error('fetchAllData error:', e);
+    renderQueue(); renderLog(); renderPend(); renderKPI(); updateBadges();
+  }
+}
+
+function setLoading(msg, pct) {
+  var ov = document.getElementById('loadingOverlay');
+  ov.style.display = 'flex';
+  var msgEl = document.getElementById('loadingMsg'); if(msgEl) msgEl.textContent = msg;
+  var bar = document.getElementById('loadBar'); if(bar) bar.style.width = pct + '%';
+}
+
+// ════════════════════════════════════════════════════
+// GRAPH WRITE OPERATIONS (fire-and-forget with error toast)
+// ════════════════════════════════════════════════════
+async function graphPatchPolicy(r, fields) {
+  if (!graphSiteId || !graphListIds['PK_Policies'] || !r.graphId) return;
+  try {
+    await graphCall('PATCH', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_Policies'] + '/items/' + r.graphId + '/fields', fields);
+  } catch(e) { showToast('⚠️ Sync error (Policies): ' + e.message.substring(0,60), '#b45309'); console.error(e); }
+}
+async function graphCreateLog(entry) {
+  if (!graphSiteId || !graphListIds['PK_ActivityLog']) return;
+  try {
+    await graphCall('POST', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_ActivityLog'] + '/items', {
+      fields: {
+        Title: entry.client || '',
+        Policy: entry.policy || '',
+        Action_Type: entry.type || '',
+        Detail: entry.detail || '',
+        Amount: entry.amt || '',
+        User: entry.user || currentUser.email || 'KK',
+        Timestamp: entry.time || nowStr(),
+        Is_Closing: entry.needsMech || false,
+        Parent: entry.parent || ''
+      }
+    });
+  } catch(e) { showToast('⚠️ Sync error (Log): ' + e.message.substring(0,60), '#b45309'); console.error(e); }
+}
+async function graphCreatePend(entry) {
+  if (!graphSiteId || !graphListIds['PK_PendingReg']) return;
+  try {
+    await graphCall('POST', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_PendingReg'] + '/items', {
+      fields: {
+        Title: entry.client || '',
+        Policy: entry.policy || '',
+        Message: entry.what || '',
+        Done: false,
+        User: currentUser.email || 'KK',
+        Email: entry.email || '',
+        Phone: entry.phone || ''
+      }
+    });
+  } catch(e) { showToast('⚠️ Sync error (Pending): ' + e.message.substring(0,60), '#b45309'); console.error(e); }
+}
+async function graphPatchPend(uid, fields) {
+  if (!graphSiteId || !graphListIds['PK_PendingReg'] || !uid) return;
+  try {
+    await graphCall('PATCH', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_PendingReg'] + '/items/' + uid + '/fields', fields);
+  } catch(e) { showToast('⚠️ Sync error (Pending update): ' + e.message.substring(0,60), '#b45309'); }
+}
+async function graphCreatePolicy(r) {
+  if (!graphSiteId || !graphListIds['PK_Policies']) return null;
+  try {
+    var resp = await graphCall('POST', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_Policies'] + '/items', {
+      fields: {
+        Title: r.client || '',
+        Insurer: r.insurer || '', Branch: r.branch || '', Policy: r.policy || '',
+        Plate: r.plate || '', Parent: r.parent || '', Email: r.email || '',
+        Phone: r.phone || '', KIP: r.kip || '', Note: r.note || '',
+        Expiry: r.expiry ? displayToISO(r.expiry) : null,
+        Month: r.month || currentMonth,
+        Premium: r.premNum || 0,
+        Payment_Status: r.payment || 'UNPAID',
+        Sent: r.sent === 'YES',
+        Is_Proposal: r.isProposal || false,
+        Last_Action: r.last || '—',
+        Source: r.source || ''
+      }
+    });
+    return resp;
+  } catch(e) { showToast('⚠️ Sync error (create): ' + e.message.substring(0,60), '#b45309'); return null; }
+}
+
+// ════════════════════════════════════════════════════
+// STORAGE (now delegates to Graph)
+// ════════════════════════════════════════════════════
+async function loadStorage() {
+  // Called on init — data is loaded by fetchAllData() after auth
+  // This is kept for compatibility
+  renderQueue(); renderLog(); renderPend(); renderKPI(); updateBadges();
+}
+async function saveLog(){/* Graph handles persistence via addLog */}
+async function savePend(){/* Graph handles persistence via addPend */}
+async function saveClosed(){/* Graph handles persistence via graphPatchPolicy */}
+async function saveNotes(){/* Graph handles persistence via graphPatchPolicy */}
+async function saveSnooze(){/* Graph handles persistence via graphPatchPolicy */}
+
+
+// ════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════
+function showToast(msg,color){var t=document.getElementById('toast');t.textContent=msg;t.style.background=color||'#0f172a';t.style.display='block';clearTimeout(t._t);t._t=setTimeout(function(){t.style.display='none';},2800);}
+function cpBtn(text,label){var s=text.replace(/\\/g,'\\\\').replace(/'/g,"\\'"),l=label.replace(/'/g,"\\'");return '<span class="cpw" onclick="doCopy(\''+s+'\',\''+l+'\')" title="Αντιγραφή: '+label+'"><span>'+text+'</span><span class="ci">&#128203;</span></span>';}
+function doCopy(text,label){if(navigator.clipboard)navigator.clipboard.writeText(text).catch(function(){});showToast('📋 '+text,'#1d4ed8');}
+function nowStr(){var d=new Date();return fmtDate(d)+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');}
+function isSnoozed(r){if(!r.snoozeActive||!r.snoozeUntil)return false;var sd=new Date(r.snoozeUntil.split('/').reverse().join('-'));sd.setHours(0,0,0,0);return sd>TODAY;}
+function isQueueEligible(r){if(closedIds[r.id])return false;if(isSnoozed(r))return false;var diff=daysDiff(r.expiry);return diff<=45;}
+function expClass(days){return days<0?'exp-late':days<=7?'exp-soon':'exp-ok';}
+function expTxt(days){return days<0?(Math.abs(days)+'μ πριν!'):days===0?'ΣΗΜΕΡΑ':days===1?'αύριο':('+'+days+'μ');}
+function payBadge(p){if(p==='PAID')return '<span class="bdg paid">✓ PAID</span>';if(p==='PAID_PENDING')return '<span class="bdg pendg">⏳ PENDING</span>';return '<span class="bdg unpaid">✗ UNPAID</span>';}
+function extraBadge(r){if(r.sos)return '<span class="bdg sos">&#128680; SOS</span>';if(r.hold==='CUSTOMER_PROMISE')return '<span class="bdg promise">&#129309; '+r.promise+'</span>';return '';}
+
+function addLog(r,type,label,detail,amt,needsMech){
+  var entry={time:nowStr(),user:currentUser.email||'KK',type:type,label:label,detail:detail,amt:amt||'',client:r.client,parent:r.parent||'',policy:r.policy,mechDone:!needsMech,needsMech:needsMech};
+  actLog.unshift(entry);
+  saveLog();updateBadges();renderLog();
+  graphCreateLog(entry);
+}
+function addPend(r,what){
+  var entry={uid:r.graphId||r.id+'_'+Date.now(),rid:r.graphId||r.id,client:r.client,policy:r.policy,insurer:r.insurer,premium:r.premium,email:r.email,phone:r.phone,parent:r.parent||'',what:what,done:false};
+  pendRegs.push(entry);
+  savePend();updateBadges();renderPend();
+  graphCreatePend(entry);
+}
+
+function updateBadges(){
+  // Queue: count truly active (not closed, not snoozed, within window)
+  var active=records.filter(function(r){return isQueueEligible(r);}).length;
+  // Also add snoozed that return today
+  var snzToday=records.filter(function(r){
+    if(closedIds[r.id]||!r.snoozeActive||!r.snoozeUntil)return false;
+    var sd=new Date(r.snoozeUntil.split('/').reverse().join('-'));sd.setHours(0,0,0,0);
+    return sd.getTime()===TODAY.getTime();
+  }).length;
+  document.getElementById('tb-q').textContent=active+snzToday;
+
+  document.getElementById('tb-log').textContent=actLog.length;
+  var pc=pendRegs.filter(function(p){return!p.done;}).length;
+  document.getElementById('tb-pend').textContent=pc;
+  document.getElementById('pendCount').textContent=pc;
+  document.getElementById('tb-pend').className=pc>0?'tbadge org':'tbadge grn';
+  var notes=records.filter(function(r){return r.note&&r.note.trim();}).length;
+  document.getElementById('tb-m').textContent=notes>0?'Σχόλια '+notes:'Μήνας';
+  var done=Object.keys(closedIds).length;
+  document.getElementById('tb-archive').textContent=done||'—';
+  var total=records.length;
+  document.getElementById('progTxt').textContent=done+'/'+total;
+  document.getElementById('progFill').style.width=Math.round(done/total*100)+'%';
+}
+
+// ════════════════════════════════════════════════════
+// SEARCH
+// ════════════════════════════════════════════════════
+function doSearch(q){
+  var box=document.getElementById('sRes');
+  if(!q||q.length<2){box.style.display='none';return;}
+  var qL=q.toLowerCase();
+  var fields=['client','policy','plate','branch','insurer','email','phone','code','parent','note'];
+  var res=records.filter(function(r){return fields.some(function(f){return r[f]&&r[f].toLowerCase().indexOf(qL)>=0;});});
+  if(!res.length){box.style.display='none';return;}
+  var mf=function(r){var m={client:'Όνομα',policy:'Συμβόλαιο',plate:'Πινακίδα',branch:'Κλάδος',insurer:'Ασφαλιστική',email:'Email',phone:'Τηλ.',code:'ΚΗΠ',parent:'Γονική',note:'Σχόλιο'};for(var k in m){if(r[k]&&r[k].toLowerCase().indexOf(qL)>=0)return m[k];}return '';};
+  var html='';
+  res.slice(0,6).forEach(function(r){
+    var pc=r.payment==='PAID'?'paid':r.payment==='PAID_PENDING'?'pendg':'unpaid';
+    var pi=r.parent&&r.parent!==r.client?'<span class="sd-tag" style="background:#f0fdf4;color:#166534">&#128106; '+r.parent+'</span>':'';
+    html+='<div class="sd-item" onclick="jumpTo('+r.id+')">';
+    html+='<div style="flex:1"><div class="sd-name">'+r.client+' <span class="sd-tag">'+mf(r)+'</span>'+pi+'</div>';
+    html+='<div class="sd-meta">'+r.insurer+' · '+r.branch+' · Λήξη '+r.expiry+(r.note?' · 💬':'')+'</div></div>';
+    html+='<span class="bdg '+pc+'">'+(r.payment==='PAID'?'✓ PAID':r.payment==='PAID_PENDING'?'⏳':'✗')+'</span></div>';
+  });
+  box.innerHTML=html;box.style.display='block';
+}
+function hideSearch(){document.getElementById('sRes').style.display='none';}
+function jumpTo(id){hideSearch();document.getElementById('sInput').value='';switchTab('queue');setTimeout(function(){var el=document.getElementById('card-'+id);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('hl');setTimeout(function(){el.classList.remove('hl');},2000);}},150);}
+function jumpToMonthly(id){switchTab('monthly');setTimeout(function(){var el=document.getElementById('mcard-'+id);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('hl');setTimeout(function(){el.classList.remove('hl');},2500);}var ned=document.getElementById('ned-'+id);if(ned)ned.classList.add('open');},200);}
+
+// ════════════════════════════════════════════════════
+// QUEUE BUCKETS
+// ════════════════════════════════════════════════════
+var bktCfg=[
+  {id:'sos',cls:'sos',label:'&#128680; BUCKET 1 — SOS / Broken Promise',
+    fn:function(r){return(r.sos||r.hold==='CUSTOMER_PROMISE')&&isQueueEligible(r);},
+    btns:function(r){return[{cls:'call',l:'&#128222; Call',a:'call'},{cls:'call',l:'&#128241; SMS',a:'sms'},{cls:'mail',l:'&#9993; Final Notice',a:'mail_final'},{cls:'paid',l:'&#10003; Πληρώθηκε',a:'paid'},{cls:'cncl',l:'&#10006; Ακύρωση',a:'cancel'},{cls:'nore',l:'&#128123; Δεν απαντά',a:'noresp'}];}},
+  {id:'warn',cls:'warn',label:'&#9888; BUCKET 2 — Near Expiry Unpaid',
+    fn:function(r){var d=daysDiff(r.expiry);return!r.sos&&r.payment==='UNPAID'&&d<=7&&!r.hold&&isQueueEligible(r);},
+    btns:function(r){return[{cls:'mail',l:'&#9993; Mail 7d',a:'mail_7'},{cls:'call',l:'&#128222; Call',a:'call'},{cls:'call',l:'&#128241; SMS',a:'sms'},{cls:'paid',l:'&#10003; Πληρώθηκε',a:'paid'},{cls:'cncl',l:'&#10006;',a:'cancel'},{cls:'repl',l:'&#128260; Αλλού',a:'replaced'},{cls:'nore',l:'&#128123;',a:'noresp'}];}},
+  {id:'pend',cls:'pend',label:'&#9203; BUCKET 3 — Paid Pending Επαλήθευση',
+    fn:function(r){return r.payment==='PAID_PENDING'&&isQueueEligible(r);},
+    btns:function(r){return[{cls:'chk',l:'&#128269; Portal OK',a:'confirm_paid'},{cls:'mail',l:'&#9993; Υπενθύμιση',a:'mail_reminder'}];}},
+  {id:'sent',cls:'sent',label:'&#10003; BUCKET 4 — Πληρώθηκε — Στείλε Συμβόλαιο',
+    fn:function(r){return r.payment==='PAID'&&r.sent==='NO'&&!closedIds[r.id];},
+    btns:function(r){return[{cls:'send',l:'&#128196; Στείλε Συμβόλαιο',a:'send_policy'}];}},
+  {id:'ntc',cls:'ntc',label:'&#9993; BUCKET 5 — Notices Due',
+    fn:function(r){var d=daysDiff(r.expiry);return!r.sos&&!r.hold&&r.payment==='UNPAID'&&d>7&&d<=45&&isQueueEligible(r);},
+    btns:function(r){var d=daysDiff(r.expiry);var lbl=d<=15?'15d':d<=30?'30d':'30d+';return[{cls:'mail',l:'&#9993; Mail '+lbl,a:'mail_notice'},{cls:'call',l:'&#128241; SMS',a:'sms'},{cls:'paid',l:'&#10003; Πληρώθηκε',a:'paid'},{cls:'nrn',l:'&#128683; Δεν ανανεώνει',a:'norenewal'}];}},
+  {id:'snz',cls:'snz',label:'&#128336; SNOOZED — Follow-up Προγραμματισμένο',
+    fn:function(r){return!closedIds[r.id]&&isSnoozed(r);},
+    btns:function(r){return[{cls:'call',l:'&#128222; Call',a:'call'},{cls:'call',l:'&#128241; SMS',a:'sms'},{cls:'mail',l:'&#9993; Mail',a:'mail_notice'},{cls:'snz',l:'&#128336; Νέο Snooze',a:'snooze'}];}}
+];
+
+function sameClientCount(client,month){return records.filter(function(r){return r.client===client&&r.month===month&&isQueueEligible(r);}).length;}
+
+function renderQueue(){
+  var wrap=document.getElementById('bucketsWrap');if(!wrap)return;wrap.innerHTML='';
+  bktCfg.forEach(function(b){
+    var rows=records.filter(b.fn).sort(function(a,c){return daysDiff(a.expiry)-daysDiff(c.expiry);});
+    var div=document.createElement('div');div.className='bucket '+b.cls;div.id='bucket-'+b.id;
+    var hdr=document.createElement('div');hdr.className='bkt-hdr';
+    hdr.innerHTML=b.label+' <span class="bkt-cnt">'+rows.length+'</span><span class="bkt-chev">&#9660;</span>';
+    hdr.onclick=function(){toggleBkt(hdr);};
+    var body=document.createElement('div');body.className='bkt-body';
+    if(!rows.length){body.innerHTML='<div class="empty-row">&#10003; Καθαρό</div>';}
+    else{
+      var groups={};var gOrder=[];
+      rows.forEach(function(r){var key=r.parentEmail?r.parent:r.client;if(!groups[key]){groups[key]=[];gOrder.push(key);}groups[key].push(r);});
+      gOrder.forEach(function(key){
+        var gRows=groups[key];
+        var isParent=gRows[0].parentEmail&&gRows[0].parent!==gRows[0].client;
+        var isSameClient=!isParent&&gRows.length>1;
+        if(isParent||isSameClient){
+          var sep=document.createElement('div');sep.className='grp-sep';
+          var lbl=isParent?('&#128106; Γονική: '+key):('&#128100; '+key+' — '+gRows.length+' συμβόλαια αυτόν τον μήνα');
+          var ids=gRows.map(function(r){return r.id;});
+          sep.innerHTML='<span class="grp-lbl">'+lbl+'</span><span class="grp-cnt">'+gRows.length+'</span><button class="grp-btn" onclick="openMailChoice(['+ids.join(',')+'])">&#128231; Επιλογή αποστολής</button>';
+          body.appendChild(sep);
+        }
+        gRows.forEach(function(r){body.appendChild(buildCard(r,b));});
+      });
+    }
+    div.appendChild(hdr);div.appendChild(body);wrap.appendChild(div);
+  });
+  updateBadges();
+}
+
+function buildCard(r,b){
+  var card=document.createElement('div');card.className='acard';card.id='card-'+r.id;
+  var days=daysDiff(r.expiry);
+  var ec=isSnoozed(r)?'exp-snz':expClass(days);
+  var btns=b.btns(r).map(function(bt){return '<button class="btn '+bt.cls+'" onclick="doAction('+r.id+',\''+bt.a+'\')">'+bt.l+'</button>';}).join('');
+  var propPill=r.isProposal?'<span class="pill prop">&#9888; ΠΡΟΤΑΣΗ</span>':((!r.policy||r.policy==='')&&!r.isProposal?'<span class="pill" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1">&#128203; ΑΙΤΗΣΗ</span>':'');
+  var soPill=r.soHistory?'<span class="pill so">&#128309; ΠΕ</span>':'';
+  var odPill=r.isOD?'<span class="pill od">&#128260; ΟΔ</span>':'';
+  var snzPill=isSnoozed(r)?'<span class="pill snz">&#128336; '+r.snoozeUntil+'</span>':'';
+  var cnt=sameClientCount(r.client,r.month);
+  var mpPill=cnt>1?'<span class="pill mp" onclick="jumpToMonthly('+r.id+')">&#128203; '+cnt+'</span>':'';
+  var notePill=r.note?'<div class="note-pill" onclick="jumpToMonthly('+r.id+')">&#128172; Σχόλιο</div>':'';
+  var creditFlag=r.credit?'<div class="credit-fl">&#9888; Αντιλογισμός — δες μηχ/φηση</div>':'';
+  var pBadge=payBadge(r.payment);var eBadge=extraBadge(r);
+  var snzTxt=isSnoozed(r)?('<div style="font-size:9px;color:var(--purple);margin-top:2px">&#128336; '+(r.snoozeNote||'Follow-up')+'</div>'):'';
+  card.innerHTML=
+    '<div class="ac-stripe"></div>'+
+    '<div class="ac-exp"><div class="'+ec+'"><div class="exp-date">'+r.expiry+'</div><div class="exp-days">'+expTxt(days)+'</div></div></div>'+
+    '<div class="ac-cli">'+
+      '<div class="cli-n" title="'+r.client+'">'+r.client+'</div>'+
+      '<div class="cli-sub">'+cpBtn(r.policy||'—','Αρ.Συμβολαίου')+(r.plate?' · '+cpBtn(r.plate,'Πινακίδα'):'')+soPill+odPill+mpPill+propPill+snzPill+'</div>'+
+      notePill+snzTxt+
+    '</div>'+
+    '<div class="ac-ins"><div class="ins-n">'+r.insurer+'</div><div class="ins-b">'+r.branch+'</div></div>'+
+    '<div class="ac-amt"><div class="amt-v"><span class="cpw" onclick="editPremium('+r.id+')" title="Κλικ για επεξεργασία ασφαλίστρου"><span id="prem-v-'+r.id+'">'+r.premium+'€</span><span class="ci">✏️</span></span></div>'+(r.code?'<div>'+cpBtn(r.code,'ΚΗΠ')+'</div>':'')+creditFlag+'</div>'+
+    '<div class="ac-info">'+
+      '<div class="bdg-row">'+pBadge+eBadge+'</div>'+
+      '<div class="ef" onclick="editField('+r.id+',\'email\')">&#9993; <span id="efv-e-'+r.id+'">'+(r.email||'—')+'</span></div>'+
+      '<div class="ef" onclick="editField('+r.id+',\'phone\')">&#128222; <span id="efv-p-'+r.id+'">'+(r.phone||'—')+'</span></div>'+
+      '<div class="last-act">Τελ: '+(r.last||'—')+'</div>'+
+    '</div>'+
+    '<div class="ac-act">'+btns+'<button class="btn tmpl" onclick="openTemplate('+r.id+')">&#128203; Template</button><button class="btn trail" onclick="openTrail('+r.id+')">&#128203; Trail</button><button class="btn snz" onclick="doAction('+r.id+',\'snooze\')">&#128336;</button></div>';
+  return card;
+}
+
+// ════════════════════════════════════════════════════
+// EDIT FIELD
+// ════════════════════════════════════════════════════
+function editField(id,field){
+  var r=records.find(function(x){return x.id===id;});if(!r)return;
+  var pfx=field==='email'?'e':'p';
+  var valEl=document.getElementById('efv-'+pfx+'-'+id);if(!valEl)return;
+  var orig=r[field]||'';var icon=field==='email'?'&#9993; ':'&#128222; ';
+  var parent=valEl.parentElement;
+  parent.innerHTML=icon+'<input id="ei-'+field+'-'+id+'" style="border:none;outline:none;font-size:10px;font-family:IBM Plex Sans,sans-serif;color:var(--text);background:transparent;width:165px;" value="'+orig+'" onclick="event.stopPropagation()">';
+  var inp=document.getElementById('ei-'+field+'-'+id);if(!inp)return;inp.focus();inp.select();
+  function save(){var nv=inp.value.trim();r[field]=nv;parent.innerHTML=icon+'<span id="efv-'+pfx+'-'+id+'">'+(nv||'—')+'</span>';parent.onclick=function(){editField(id,field);};if(nv!==orig){showToast((field==='email'?'Email':'Τηλ.')+': '+nv,'#166534');var gf={};gf[field==='email'?'Email':'Phone']=nv;graphPatchPolicy(r,gf);}}
+  inp.onblur=save;
+  inp.onkeydown=function(e){if(e.key==='Enter')save();if(e.key==='Escape'){parent.innerHTML=icon+'<span id="efv-'+pfx+'-'+id+'">'+(orig||'—')+'</span>';parent.onclick=function(){editField(id,field);};}};
+}
+
+// ════════════════════════════════════════════════════
+// EDIT PREMIUM (manual entry)
+// ════════════════════════════════════════════════════
+function editPremium(id){
+  var r=records.find(function(x){return x.id===id;});if(!r)return;
+  var valEl=document.getElementById('prem-v-'+id);if(!valEl)return;
+  var orig=r.premium;var parent=valEl.parentElement;
+  parent.innerHTML='<input id="pi-'+id+'" style="border:1px solid var(--blue);border-radius:3px;padding:1px 4px;font-size:11px;font-family:IBM Plex Mono,monospace;font-weight:700;color:var(--text);background:#fff;width:80px;" value="'+orig+'" onclick="event.stopPropagation()">';
+  var inp=document.getElementById('pi-'+id);if(!inp)return;inp.focus();inp.select();
+  function save(){
+    var nv=inp.value.trim().replace('€','').replace(',','.');
+    var num=parseFloat(nv);
+    if(!isNaN(num)){r.premium=nv.replace('.',',');r.premNum=num;}
+    parent.innerHTML='<span class="cpw" onclick="editPremium('+id+')" title="Κλικ για επεξεργασία"><span id="prem-v-'+id+'">'+r.premium+'€</span><span class="ci">✏️</span></span>';
+    if(r.premium!==orig){showToast('Ασφάλιστρο ενημερώθηκε: '+r.premium+'€','#166534');graphPatchPolicy(r,{Premium:r.premNum});}
+  }
+  inp.onblur=save;
+  inp.onkeydown=function(e){if(e.key==='Enter')save();if(e.key==='Escape'){parent.innerHTML='<span class="cpw" onclick="editPremium('+id+')" title="Κλικ για επεξεργασία"><span id="prem-v-'+id+'">'+r.premium+'€</span><span class="ci">✏️</span></span>';}};
+}
+var tmplNames=[
+  '1. Premium Payment Notice (Αγγλικά)',
+  '2. Ειδοποίηση Ασφαλίστρων (Ελληνικά — 1 συμβόλαιο)',
+  '3. Ειδοποίηση Ασφαλίστρων ΟΔ (Ελληνικά — 2 ΚΗΠ)',
+  '4. Ειδοποίηση Ασφαλίστρων Εταιρεία/Πίνακας',
+  '5. 2η Υπενθύμιση — Reply (Ελληνικά)',
+  '6. 3η Υπενθύμιση — Reply (Ελληνικά)'
+];
+var tmplDescr=[
+  'Για αγγλόφωνους πελάτες. 1 πίνακας. ✉️ Νέο mail.',
+  'Για φυσικά πρόσωπα με 1 συμβόλαιο. ✉️ Νέο mail.',
+  'Αυτοκίνητο + Οδική Βοήθεια, 2 ΚΗΠ. ✉️ Νέο mail.',
+  'Εταιρεία ή 3+ συμβόλαια — πίνακας. ✉️ Νέο mail.',
+  '↩️ Reply στο 1ο mail. Παραπέμπει στην προηγούμενη αλληλογραφία.',
+  '↩️ Reply στο 2ο mail. Τελευταία υπενθύμιση πριν λήξη.'
+];
+var tmplIsReply=[false,false,false,false,true,true];
+var tmplReplyBody=[
+  '','','','',
+  'Καλησπέρα σας,\n\nΕλπίζουμε ότι είστε καλά.\n\nΘα θέλαμε να σας υπενθυμίσουμε ότι πλησιάζει η ημερομηνία ανανέωσης του ασφαλιστηρίου συμβολαίου σας. Στόχος μας είναι να σας προσφέρουμε τον απαραίτητο χρόνο για την οργάνωση της εξόφλησής του.\n\nΠροκειμένου το συμβόλαιό σας να ανανεωθεί, θα πρέπει πρώτα να το εξοφλήσετε. Μόλις ολοκληρωθεί η διαδικασία, η ασφαλιστική σας εταιρεία θα εκδώσει το νέο συμβόλαιο.\n\nΓια το συνολικό ποσό των ασφαλίστρων και τις μεθόδους πληρωμής, ανατρέξτε στην πρόσφατη αλληλογραφία μας. Αν έχετε ήδη προχωρήσει στην εξόφληση μέσω της εταιρείας σας, παρακαλούμε ενημερώστε μας ανταποκρινόμενοι σε αυτό το μήνυμα.\n\nΕίναι προτεραιότητά μας να σας προσφέρουμε την καλύτερη δυνατή εξασφάλισή σας. Γι\' αυτόν τον λόγο, σας ενημερώνουμε για την προσεχή ανανέωση του συμβολαίου σας.',
+  'Καλημέρα σας,\n\nΣε συνέχεια της μέχρι σήμερα επικοινωνίας μας θέλουμε να διασφαλίσουμε ότι είστε ενήμερος για την προσεχή ανανέωση του ασφαλιστηρίου συμβολαίου σας, η οποία πρόκειται να πραγματοποιηθεί εντός των επόμενων ημερών.\n\nΓια να ανανεωθεί το ασφαλιστήριο συμβόλαιό σας, πρέπει πρώτα να εξοφληθεί και στην συνέχεια θα εκδοθεί από την ασφαλιστική σας εταιρεία για να έχει ισχύ.\n\nΟι τρόποι εξόφλησης καθώς και το σύνολο των ασφαλίστρων αναφέρονται στην μεταξύ μας αλληλογραφία. Σε περίπτωση που το έχετε ήδη εξοφλήσει απευθείας στην ασφαλιστική σας εταιρεία παρακαλούμε όπως μας ενημερώσετε απαντώντας στο παρόν.\n\nΜέλημά μας είναι πάντα η καλύτερη δυνατή εξασφάλισή σας και στο πλαίσιο αυτής της προσπάθειας επικοινωνούμε μαζί σας εκ νέου για την επικείμενη ανανέωση του ασφαλιστηρίου συμβολαίου σας.'
+];
+
+function openTemplate(id){
+  var r=records.find(function(x){return x.id===id;});if(!r)return;
+  var sameClient=records.filter(function(x){return x.client===r.client&&!closedIds[x.id];});
+  var hasOD=sameClient.some(function(x){return x.isOD;});
+  // Count prior mail actions for this client to auto-suggest reply templates
+  var priorMails=actLog.filter(function(e){return (e.type==='mail'||e.type==='bulk')&&e.client===r.client;}).length;
+  var suggested;
+  if(priorMails>=2) suggested=5;
+  else if(priorMails===1) suggested=4;
+  else suggested=r.clientType==='company'?3:r.clientType==='english'?0:hasOD?2:sameClient.length>2?3:1;
+
+  document.getElementById('mIcon').textContent='📋';
+  document.getElementById('mTitle').textContent='Επιλογή Template';
+  document.getElementById('mSub').textContent=r.client+' · '+r.policy+(priorMails>0?' · '+priorMails+' προηγούμενα mails':'');
+
+  var optsHtml=tmplNames.map(function(n,i){
+    var isRep=tmplIsReply[i];
+    var tag=isRep?'<span style="font-size:9px;background:#f0fdf4;color:#166534;padding:1px 5px;border-radius:3px;margin-left:4px">↩️ Reply</span>':'<span style="font-size:9px;background:#eff6ff;color:#1d4ed8;padding:1px 5px;border-radius:3px;margin-left:4px">✉️ Νέο</span>';
+    return '<div class="tmpl-opt'+(i===suggested?' sel':'')+'" id="tmpl-opt-'+i+'" onclick="selectTmpl('+i+')">'+
+      '<div class="tmpl-opt-title">'+(i===suggested?'★ ':'')+n+tag+'</div>'+
+      '<div style="font-size:10px;color:var(--text2);margin-top:2px">'+tmplDescr[i]+'</div></div>';
+  }).join('');
+
+  // Build content area — table for 1-4, copy text for 5-6
+  var contentHtml=buildTmplContent(id,suggested);
+
+  document.getElementById('mBody').innerHTML=
+    (priorMails>0?'<div class="minfo">&#128203; Αυτόματη πρόταση βάσει '+priorMails+' προηγούμενων mails στο log.</div>':'')+
+    '<div class="tmpl-opts">'+optsHtml+'</div>'+
+    '<div id="tmplContent">'+contentHtml+'</div>';
+  window._tmplRecId=id;window._tmplSel=suggested;
+  document.getElementById('mFoot').innerHTML='<button class="mbtn secondary" onclick="closeModal()">Κλείσιμο</button><button class="mbtn tmpl" onclick="confirmTemplate()">&#128203; Καταγραφή Αποστολής</button>';
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function buildTmplContent(id,idx){
+  var r=records.find(function(x){return x.id===id;});if(!r)return '';
+  if(tmplIsReply[idx]){
+    // Reply template — show copy-ready text
+    var txt=tmplReplyBody[idx];
+    return '<div class="tmpl-table">'+
+      '<div style="font-size:10px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">↩️ Κείμενο Reply — copy και paste στο Outlook:</div>'+
+      '<textarea id="replyTxt" style="width:100%;min-height:200px;padding:10px;border:1px solid var(--border2);border-radius:5px;font-size:11px;font-family:IBM Plex Sans,sans-serif;line-height:1.7;color:var(--text);background:var(--bg);resize:vertical">'+txt+'</textarea>'+
+      '<button class="copy-all" onclick="copyReplyText()">&#128203; Αντιγραφή Κειμένου</button>'+
+    '</div>';
+  }
+  // New email — show policy table
+  var sameClient=records.filter(function(x){return x.client===r.client&&!closedIds[x.id];});
+  var tblHtml='<div class="tmpl-table"><div style="font-size:10px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Copy-ready πίνακας — paste στο Outlook:</div>';
+  sameClient.forEach(function(x){
+    tblHtml+='<div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">';
+    [{k:'Κλάδος Ασφάλισης',v:x.branch},{k:'Ασφαλισμένος/η',v:x.client},{k:'Ασφαλιστική Εταιρεία',v:x.insurer},{k:'Χαρακτηριστικό',v:x.plate||'—'},{k:'Ημερομηνία Έναρξης',v:x.expiry},{k:'Αριθμός Ασφαλιστηρίου',v:x.policy||''},{k:'Ασφάλιστρα',v:'€'+x.premium},{k:'ΚΗΠ',v:x.code||''}].forEach(function(f){
+      var missing=!f.v||f.v==='—'||f.v==='';
+      tblHtml+='<div class="tmpl-row"><span class="tmpl-key">'+f.k+'</span><span class="tmpl-val'+(missing?' missing':'')+'">'+
+        (missing?'<span style="color:var(--orange);font-style:italic">⏳ Αναμένεται</span>':cpBtn(f.v,f.k))+
+      '</span></div>';
+    });
+    tblHtml+='</div>';
+  });
+  tblHtml+='<button class="copy-all" onclick="copyFullTable('+id+')">&#128203; Αντιγραφή Όλου του Πίνακα</button></div>';
+  return tblHtml;
+}
+
+function copyReplyText(){
+  var ta=document.getElementById('replyTxt');
+  if(!ta)return;
+  if(navigator.clipboard)navigator.clipboard.writeText(ta.value).catch(function(){});
+  showToast('Κείμενο αντιγράφηκε — paste στο Outlook ως Reply','#b45309');
+}
+
+function selectTmpl(n){
+  window._tmplSel=n;
+  for(var i=0;i<tmplNames.length;i++){var el=document.getElementById('tmpl-opt-'+i);if(el)el.className='tmpl-opt'+(i===n?' sel':'');}
+  var contentEl=document.getElementById('tmplContent');
+  if(contentEl)contentEl.innerHTML=buildTmplContent(window._tmplRecId,n);
+}
+
+function copyFullTable(id){
+  var r=records.find(function(x){return x.id===id;});if(!r)return;
+  var sameClient=records.filter(function(x){return x.client===r.client&&!closedIds[x.id];});
+  var txt='';
+  sameClient.forEach(function(x){
+    txt+='Κλάδος Ασφάλισης:\t'+x.branch+'\n';
+    txt+='Ασφαλισμένος/η:\t'+x.client+'\n';
+    txt+='Ασφαλιστική Εταιρεία:\t'+x.insurer+'\n';
+    txt+='Χαρακτηριστικό:\t'+(x.plate||'—')+'\n';
+    txt+='Ημερομηνία Έναρξης:\t'+x.expiry+'\n';
+    txt+='Αριθμός Ασφαλιστηρίου:\t'+(x.policy||'—')+'\n';
+    txt+='Ασφάλιστρα:\t€'+x.premium+'\n';
+    txt+='ΚΗΠ:\t'+(x.code||'—')+'\n\n';
+  });
+  if(navigator.clipboard)navigator.clipboard.writeText(txt).catch(function(){});
+  showToast('Πίνακας αντιγράφηκε — paste στο Outlook','#b45309');
+}
+
+function confirmTemplate(){
+  var id=window._tmplRecId;var sel=window._tmplSel;
+  var r=records.find(function(x){return x.id===id;});if(!r)return;
+  closeModal();
+  var isReply=tmplIsReply[sel];
+  var label=isReply?('Reply '+(sel===4?'2η':'3η')+' Υπενθύμιση'):'Mail Template '+(sel+1);
+  var detail=(isReply?'↩️ Reply → ':('✉️ Νέο → '))+r.email;
+  addLog(r,'mail',label,detail,r.premium+'€',false);
+  r.last=label+' — σήμερα';
+  showToast(label+' — '+r.client.split(' ')[0]+(isReply?' (κείμενο αντιγράφηκε)':' (πίνακας αντιγράφηκε)'),'#b45309');
+  renderQueue();
+}
+
+// ════════════════════════════════════════════════════
+// TRAIL (history per policy)
+// ════════════════════════════════════════════════════
+function openTrail(id){
+  var r=records.find(function(x){return x.id===id;});if(!r)return;
+  var entries=actLog.filter(function(e){return e.policy===r.policy||e.client===r.client;});
+  document.getElementById('trailTitle').textContent='Ιστορικό — '+r.client;
+  document.getElementById('trailSub').textContent=r.insurer+' · '+r.branch+' · '+r.policy;
+  var body=document.getElementById('trailBody');
+  if(!entries.length){body.innerHTML='<div class="trail-empty">Καμία ενέργεια ακόμα για αυτό το συμβόλαιο.</div>';document.getElementById('trailOverlay').classList.add('open');return;}
+  var dotIco={mail:'✉',call:'📞',sms:'📱',paid:'€',policy:'📄',cancelled:'✗',norenewal:'🚫',replaced:'🔄',noresp:'👻',bulk:'📧',snooze:'🕐',note:'💬'};
+  body.innerHTML=entries.map(function(e){
+    var dc=e.type||'mail';
+    return '<div class="trail-entry">'+
+      '<div class="trail-dot '+dc+'">'+(dotIco[dc]||'·')+'</div>'+
+      '<div class="trail-info">'+
+        '<div class="trail-action">'+e.label+'</div>'+
+        '<div class="trail-detail">'+e.detail+'</div>'+
+        '<div class="trail-time">'+e.time+' · '+e.user+(e.amt?' · '+e.amt:'')+'</div>'+
+      '</div></div>';
+  }).join('');
+  document.getElementById('trailOverlay').classList.add('open');
+}
+function closeTrail(){document.getElementById('trailOverlay').classList.remove('open');}
+
+// ════════════════════════════════════════════════════
+// SNOOZE
+// ════════════════════════════════════════════════════
+function openSnoozeModal(r){
+  document.getElementById('mIcon').textContent='🕐';
+  document.getElementById('mTitle').textContent='Snooze / Follow-up';
+  document.getElementById('mSub').textContent=r.client+' · '+r.expiry;
+  var presets=['Αύριο','+3 μέρες','+7 μέρες','+14 μέρες','Καθορισμός'];
+  var p3=new Date(TODAY);p3.setDate(p3.getDate()+3);
+  var p7=new Date(TODAY);p7.setDate(p7.getDate()+7);
+  var p14=new Date(TODAY);p14.setDate(p14.getDate()+14);
+  var pDates=[relDate(1),fmtDate(p3),fmtDate(p7),fmtDate(p14),'custom'];
+  var presHtml=presets.map(function(p,i){return '<div class="snooze-p" id="snzp-'+i+'" onclick="selectSnzPreset('+i+',\''+pDates[i]+'\')">'+p+'</div>';}).join('');
+  var minDate=new Date(TODAY);minDate.setDate(minDate.getDate()+1);
+  var minStr=minDate.getFullYear()+'-'+String(minDate.getMonth()+1).padStart(2,'0')+'-'+String(minDate.getDate()).padStart(2,'0');
+  document.getElementById('mBody').innerHTML=
+    '<div class="minfo">Η γραμμή φεύγει από το queue και επανεμφανίζεται εκείνη τη μέρα.</div>'+
+    '<div class="mf"><div class="ml">Επανεμφάνιση</div><div class="snooze-presets">'+presHtml+'</div><input type="date" class="mdate" id="snzDate" min="'+minStr+'" value="" style="display:none;margin-top:6px"></div>'+
+    '<div class="mf"><div class="ml">Σημείωση follow-up</div><input class="minp" id="snzNote" placeholder="π.χ. Θα πληρώσει μετά τις διακοπές..."></div>';
+  window._snzRecId=r.id;window._snzDate='';
+  document.getElementById('mFoot').innerHTML='<button class="mbtn secondary" onclick="closeModal()">Άκυρο</button><button class="mbtn snz" onclick="confirmSnooze()">&#128336; Snooze</button>';
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function selectSnzPreset(i,val){
+  document.querySelectorAll('.snooze-p').forEach(function(p,j){p.className='snooze-p'+(j===i?' sel':'');});
+  var dateInp=document.getElementById('snzDate');
+  if(val==='custom'){dateInp.style.display='block';window._snzDate='';}
+  else{dateInp.style.display='none';window._snzDate=val;}
+}
+function confirmSnooze(){
+  var id=window._snzRecId;
+  var r=records.find(function(x){return x.id===id;});if(!r)return;
+  var dateInp=document.getElementById('snzDate');
+  var snzNote=(document.getElementById('snzNote')||{}).value||'';
+  var snzDate=window._snzDate;
+  if(!snzDate&&dateInp&&dateInp.value){var dp=dateInp.value.split('-');snzDate=dp[2]+'/'+dp[1]+'/'+dp[0];}
+  if(!snzDate){showToast('Επίλεξε ημερομηνία','#c2410c');return;}
+  r.snoozeUntil=snzDate;r.snoozeNote=snzNote;r.snoozeActive=true;
+  saveSnooze();closeModal();
+  graphPatchPolicy(r,{Snooze_Until:displayToISO(snzDate),Snooze_Active:true,Last_Action:'Snooze → '+snzDate});
+  addLog(r,'snooze','Snooze → '+snzDate,snzNote||'Follow-up προγραμματίστηκε','',false);
+  showToast('Snooze: '+snzDate+(snzNote?' — '+snzNote:''),'#6d28d9');
+  renderQueue();
+}
+
+// ════════════════════════════════════════════════════
+// MAIL CHOICE
+// ════════════════════════════════════════════════════
+function openMailChoice(ids){
+  mailChoiceIds=ids;mailChoiceOpt=1;
+  var rows=records.filter(function(r){return ids.indexOf(r.id)>=0;});if(!rows.length)return;
+  var isParent=rows[0].parentEmail&&rows[0].parent!==rows[0].client;
+  var groupName=isParent?rows[0].parent:rows[0].client;
+  var toEmail=rows[0].parentEmail||rows[0].email;
+  document.getElementById('mIcon').textContent='📧';
+  document.getElementById('mTitle').textContent='Επιλογή Αποστολής';
+  document.getElementById('mSub').textContent=groupName+' · '+rows.length+' συμβόλαια';
+  var listHtml=rows.map(function(r){return '· '+r.client+' · '+(r.policy||'—')+' · '+r.expiry+' · '+r.premium+'€';}).join('<br>');
+  document.getElementById('mBody').innerHTML=
+    '<div class="minfo">Επίλεξε πώς θα στείλεις για <strong>'+groupName+'</strong>:</div>'+
+    '<div class="mpol-opt sel" id="mc-opt1" onclick="selMailOpt(1)"><div class="mpol-title">&#128231; Ομαδικό Mail (1 mail)</div><div class="mpol-desc">Ένα mail στο '+toEmail+'. Σημειώνει όλες τις γραμμές.</div><div class="mpol-list">'+listHtml+'</div></div>'+
+    '<div class="mpol-opt" id="mc-opt2" onclick="selMailOpt(2)"><div class="mpol-title">&#9993; Ξεχωριστά Mails ('+rows.length+' mails)</div><div class="mpol-desc">Κάθε συμβόλαιο χωριστά από το Outlook.</div></div>'+
+    '<div class="mf" style="margin-top:10px"><div class="ml">Template</div><select class="msel" id="bulkTmpl">'+tmplNames.map(function(t,i){return '<option value="'+i+'">'+t+'</option>';}).join('')+'</select></div>';
+  document.getElementById('mFoot').innerHTML='<button class="mbtn secondary" onclick="closeModal()">Άκυρο</button><button class="mbtn primary" onclick="confirmMailChoice()">&#128231; Επιβεβαίωση</button>';
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function selMailOpt(n){mailChoiceOpt=n;var o1=document.getElementById('mc-opt1'),o2=document.getElementById('mc-opt2');if(o1)o1.className='mpol-opt'+(n===1?' sel':'');if(o2)o2.className='mpol-opt'+(n===2?' sel':'');}
+function confirmMailChoice(){
+  var ids=mailChoiceIds,opt=mailChoiceOpt;
+  var rows=records.filter(function(r){return ids.indexOf(r.id)>=0;});
+  var tmplEl=document.getElementById('bulkTmpl');var tmplIdx=tmplEl?parseInt(tmplEl.value):1;
+  closeModal();
+  if(opt===1){rows.forEach(function(r){r.last='Bulk Mail — σήμερα';addLog(r,'bulk','Bulk Mail','Template '+(tmplIdx+1)+' → '+r.email,r.premium+'€',false);});showToast('Ομαδικό Mail — '+(rows[0].client||rows[0].parent)+' ('+rows.length+' συμβόλαια)','#1d4ed8');}
+  else{showToast('Στείλε '+rows.length+' ξεχωριστά mails από το Outlook','#1d4ed8');}
+  renderQueue();
+}
+
+// ════════════════════════════════════════════════════
+// ACTIONS
+// ════════════════════════════════════════════════════
+function doAction(id,act){
+  var r=records.find(function(x){return x.id===id;});if(!r)return;
+  var modals=['call','sms','paid','confirm_paid','cancel','norenewal','replaced','noresp','send_policy','snooze'];
+  if(modals.indexOf(act)>=0){
+    if(act==='snooze'){openSnoozeModal(r);return;}
+    openActionModal(r,act);return;
+  }
+  var mlMap={mail_7:'7d',mail_notice:daysDiff(r.expiry)<=15?'15d':'30d',mail_final:'Final',mail_reminder:'Υπενθύμιση'};
+  var ml=mlMap[act]||act;
+  addLog(r,'mail','Mail '+ml,'Στάλθηκε → '+r.email,r.premium+'€',false);
+  showToast('Mail '+ml+' — '+r.client.split(' ')[0],'#1d4ed8');
+  r.last='Mail '+ml+' — σήμερα';renderQueue();
+}
+
+function openActionModal(r,type){
+  currentModal={r:r,type:type};
+  document.getElementById('mSub').textContent=r.client+' · '+r.policy+' · '+r.premium+'€';
+  var ico=document.getElementById('mIcon'),tit=document.getElementById('mTitle'),bod=document.getElementById('mBody'),ftr=document.getElementById('mFoot');
+  if(type==='call'){
+    ico.textContent='📞';tit.textContent='Καταγραφή Κλήσης';
+    bod.innerHTML='<div class="minfo">Timestamp + user αποθηκεύονται αυτόματα.</div>'+
+      '<div class="mf"><div class="ml">Αποτέλεσμα</div><select class="msel" id="cR"><option>Απάντησε — θα πληρώσει</option><option>Απάντησε — δεν ανανεώνει</option><option>Δεν απάντησε</option><option>Έκλεισε</option></select></div>'+
+      '<div class="mf"><div class="ml">Σημείωση</div><input class="minp" id="cN" placeholder="Προαιρετικά..."></div>';
+    ftr.innerHTML='<button class="mbtn secondary" onclick="closeModal()">Άκυρο</button><button class="mbtn success" onclick="confirmAction()">Καταγραφή</button>';
+  }else if(type==='sms'){
+    ico.textContent='📱';tit.textContent='Καταγραφή SMS';
+    bod.innerHTML='<div class="minfo">Καταγράφεται ότι στάλθηκε SMS — ο αριθμός τηλεφώνου και το timestamp αποθηκεύονται αυτόματα.</div>'+
+      '<div class="mf"><div class="ml">Τύπος SMS</div><select class="msel" id="smsT"><option>Υπενθύμιση ανανέωσης</option><option>Ενημέρωση ποσού</option><option>Follow-up</option><option>Άλλο</option></select></div>'+
+      '<div class="mf"><div class="ml">Σημείωση</div><input class="minp" id="smsN" placeholder="Προαιρετικά..."></div>';
+    ftr.innerHTML='<button class="mbtn secondary" onclick="closeModal()">Άκυρο</button><button class="mbtn success" onclick="confirmAction()">Καταγραφή SMS</button>';
+  }else if(type==='paid'||type==='confirm_paid'){
+    ico.textContent='✅';tit.textContent='Επιβεβαίωση Πληρωμής';
+    var cw=r.credit?'<div class="mwarn">&#9888; Αντιλογισμός — δες μηχανογράφηση για το καθαρό ποσό.</div>':'';
+    bod.innerHTML=cw+'<div class="minfo">Θα προστεθεί στις Εκκρεμείς Καταχωρήσεις.</div>'+
+      '<div class="mf"><div class="ml">Τρόπος Πληρωμής</div><select class="msel" id="pM"><option>Τραπεζικό Έμβασμα</option><option>Πάγια Εντολή</option><option>Portal Ασφαλιστικής</option><option>Μετρητά</option><option>Κάρτα</option></select></div>'+
+      (r.isProposal?'<div class="mwarn" style="margin-top:8px">&#9888; ΠΡΟΤΑΣΗ ΑΝΑΝΕΩΣΗΣ — Θυμήσου να αλλάξεις τύπο στο iView!</div>':'');
+    ftr.innerHTML='<button class="mbtn secondary" onclick="closeModal()">Άκυρο</button><button class="mbtn success" onclick="confirmAction()">PAID</button>';
+  }else if(type==='send_policy'){
+    ico.textContent='📄';tit.textContent='Αποστολή Ασφαλιστηρίου';
+    bod.innerHTML='<div class="minfo">Θα σημειωθεί ως SENT.</div><div class="mf"><div class="ml">Email</div><input class="minp" id="pE" value="'+r.email+'"></div>';
+    ftr.innerHTML='<button class="mbtn secondary" onclick="closeModal()">Άκυρο</button><button class="mbtn" style="background:var(--purple);color:#fff" onclick="confirmAction()">Στείλε</button>';
+  }else if(type==='cancel'){
+    ico.textContent='❌';tit.textContent='Ακύρωση Συμβολαίου';
+    bod.innerHTML='<div class="mwarn">Αρχειοθέτηση ως CANCELLED.</div>'+
+      '<div class="mf"><div class="ml">Λόγος</div><select class="msel" id="cxR"><option>Αίτημα πελάτη</option><option>Οικονομικοί λόγοι</option><option>Πώληση οχήματος/ακινήτου</option><option>Αλλαγή ασφαλιστικής</option><option>Άλλο</option></select></div>'+
+      '<div class="mf"><div class="ml">Σχόλιο αντιλογισμού</div><input class="minp" id="cxN" placeholder="π.χ. Επιστροφή — δες μηχανογράφηση"></div>';
+    ftr.innerHTML='<button class="mbtn secondary" onclick="closeModal()">Άκυρο</button><button class="mbtn danger" onclick="confirmAction()">Επιβεβαίωση</button>';
+  }else if(type==='norenewal'){
+    ico.textContent='🚫';tit.textContent='Δεν Ανανεώνεται';
+    bod.innerHTML='<div class="mf"><div class="ml">Λόγος</div><select class="msel" id="nrR"><option>Ο πελάτης δεν θέλει</option><option>Ασφαλίστηκε αλλού</option><option>Διακοπή δραστηριότητας</option><option>Άλλο</option></select></div>'+
+      '<div class="minfo" style="margin-top:8px">&#128200; Θα δημιουργηθεί αυτόματα ευκαιρία πώλησης για follow-up σε 6 μήνες.</div>';
+    ftr.innerHTML='<button class="mbtn secondary" onclick="closeModal()">Άκυρο</button><button class="mbtn danger" onclick="confirmAction()">Επιβεβαίωση</button>';
+  }else if(type==='replaced'){
+    ico.textContent='🔄';tit.textContent='Αλλαγή / Αναχώρηση';
+    bod.innerHTML=
+      '<div class="mf" style="margin-bottom:10px"><div class="ml">Τύπος</div>'+
+      '<select class="msel" id="replType" onchange="toggleReplFields()" style="width:100%">'+
+        '<option value="other_broker">🚪 Άλλος μεσίτης — αναχωρεί</option>'+
+        '<option value="change_insurer">🔄 Αλλαγή ασφαλιστικής — εμείς το χειριζόμαστε</option>'+
+        '<option value="change_package">📦 Αλλαγή πακέτου ασφάλισης — εμείς το χειριζόμαστε</option>'+
+      '</select></div>'+
+      '<div id="replInsurer" class="mf"><div class="ml">Νέα Ασφαλιστική</div><input class="minp" id="nI" placeholder="π.χ. Interamerican..."></div>'+
+      '<div id="replPackage" class="mf" style="display:none"><div class="ml">Νέο πακέτο / λεπτομέρεια</div><input class="minp" id="nPkg" placeholder="π.χ. από Βασικό σε Πλήρες..."></div>'+
+      '<div id="replNewLine" class="minfo" style="margin-top:8px">📋 Θα δημιουργηθεί αυτόματα νέα γραμμή τύπου ΑΙΤΗΣΗ με τα στοιχεία του πελάτη.</div>';
+    ftr.innerHTML='<button class="mbtn secondary" onclick="closeModal()">Άκυρο</button><button class="mbtn teal" onclick="confirmAction()">Επιβεβαίωση</button>';
+  }else if(type==='noresp'){
+    ico.textContent='👻';tit.textContent='Δεν Εντοπίστηκε';
+    bod.innerHTML='<div class="mf"><div class="ml">Σημείωση</div><input class="minp" id="nrN" placeholder="π.χ. 3 calls αναπάντητα..."></div>';
+    ftr.innerHTML='<button class="mbtn secondary" onclick="closeModal()">Άκυρο</button><button class="mbtn danger" onclick="confirmAction()">NO_RESPONSE</button>';
+  }
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function toggleReplFields(){
+  var t=(document.getElementById('replType')||{}).value||'other_broker';
+  var ins=document.getElementById('replInsurer');
+  var pkg=document.getElementById('replPackage');
+  var nl=document.getElementById('replNewLine');
+  if(t==='other_broker'){
+    if(ins)ins.style.display='flex';
+    if(pkg)pkg.style.display='none';
+    if(nl)nl.style.display='none';
+  }else if(t==='change_insurer'){
+    if(ins)ins.style.display='flex';
+    if(pkg)pkg.style.display='none';
+    if(nl)nl.style.display='block';
+  }else{
+    if(ins)ins.style.display='none';
+    if(pkg)pkg.style.display='flex';
+    if(nl)nl.style.display='block';
+  }
+}
+function closeModal(){document.getElementById('modalOverlay').classList.remove('open');currentModal=null;}
+
+function confirmAction(){
+  if(!currentModal)return;var r=currentModal.r,type=currentModal.type;closeModal();
+  function gv(id){return(document.getElementById(id)||{}).value||'';}
+  if(type==='call'){
+    addLog(r,'call','Call',gv('cR')+(gv('cN')?' — '+gv('cN'):''),r.premium+'€',false);
+    showToast('Call — '+r.client.split(' ')[0],'#166534');r.last='Call — σήμερα';renderQueue();
+  }else if(type==='sms'){
+    addLog(r,'sms','SMS',gv('smsT')+(gv('smsN')?' — '+gv('smsN'):''),r.premium+'€',false);
+    showToast('SMS — '+r.client.split(' ')[0],'#1d4ed8');r.last='SMS — σήμερα';renderQueue();
+  }else if(type==='paid'||type==='confirm_paid'){
+    r.payment='PAID';r.sos=false;r.hold='';
+    addLog(r,'paid','PAID',gv('pM'),r.premium+'€',true);
+    addPend(r,'PAID '+r.premium+'€ ('+gv('pM')+')'+(r.credit?' — Αντιλογισμός: δες μηχ/φηση':'')+(r.isProposal?' — ⚠️ ΕΛΕΓΞΕ iView: άλλαξε ΠΡΟΤΑΣΗ ΑΝΑΝΕΩΣΗΣ → ΑΝΑΝΕΩΤΗΡΙΟ':''));
+    graphPatchPolicy(r,{Payment_Status:'PAID',Last_Action:'PAID — '+nowStr()});
+    showToast('PAID — '+r.client.split(' ')[0],'#166534');r.last='PAID — σήμερα';renderQueue();
+  }else if(type==='send_policy'){
+    r.sent='YES';closedIds[r.id]=true;saveClosed();
+    addLog(r,'policy','Policy Sent','→ '+r.email,r.premium+'€',true);
+    addPend(r,'Policy Sent — καταχώρηση εξόφλησης');
+    graphPatchPolicy(r,{Sent:true,Close_Reason:'paid_sent',Last_Action:'Policy Sent — '+nowStr()});
+    showToast('Συμβόλαιο — '+r.client.split(' ')[0],'#6d28d9');renderQueue();updateBadges();
+  }else if(type==='cancel'){
+    closedIds[r.id]=true;saveClosed();
+    addLog(r,'cancelled','CANCELLED',gv('cxR')+(gv('cxN')?' — '+gv('cxN'):''),'—',true);
+    addPend(r,'CANCELLED — '+gv('cxR')+(gv('cxN')?' — '+gv('cxN'):''));
+    graphPatchPolicy(r,{Close_Reason:'cancelled',Last_Action:'CANCELLED — '+nowStr()});
+    showToast('Cancelled — '+r.client.split(' ')[0],'#b91c1c');renderQueue();updateBadges();
+  }else if(type==='norenewal'){
+    closedIds[r.id]=true;saveClosed();
+    addLog(r,'norenewal','NOT_RENEWED',gv('nrR'),'—',true);
+    addPend(r,'NOT_RENEWED — '+gv('nrR')+' → Ευκαιρία πώλησης σε 6μ.');
+    graphPatchPolicy(r,{Close_Reason:'norenewal',Last_Action:'NOT_RENEWED — '+nowStr()});
+    showToast('Not Renewed — '+r.client.split(' ')[0],'#b91c1c');renderQueue();updateBadges();
+  }else if(type==='replaced'){
+    var replT=(document.getElementById('replType')||{}).value||'other_broker';
+    var newIns=gv('nI')||'';var newPkg=gv('nPkg')||'';
+    closedIds[r.id]=true;saveClosed();
+    var logDetail,pendDetail;
+    if(replT==='other_broker'){
+      logDetail='ΑΛΛΟΣ ΜΕΣΙΤΗΣ → '+(newIns||'?');
+      pendDetail='REPLACED (άλλος μεσίτης) → '+(newIns||'?');
+    }else if(replT==='change_insurer'){
+      logDetail='ΑΛΛΑΓΗ ΑΣΦΑΛΙΣΤΙΚΗΣ → '+(newIns||'?');
+      pendDetail='ΑΛΛΑΓΗ ΑΣΦΑΛΙΣΤΙΚΗΣ → '+(newIns||'?')+' — νέα γραμμή ΑΙΤΗΣΗ δημιουργήθηκε';
+      // Create new ΑΙΤΗΣΗ line
+      var newId=Date.now();
+      records.push({id:newId,client:r.client,insurer:newIns||'',branch:r.branch,policy:'',expiry:'',payment:'UNPAID',premium:'—',premNum:0,plate:r.plate||'',email:r.email||'',phone:r.phone||'',parent:r.parent||'',note:'Αλλαγή από '+r.insurer,isProposal:false,month:currentMonth,last:'Νέα ΑΙΤΗΣΗ από αλλαγή ασφαλιστικής'});
+    }else{
+      logDetail='ΑΛΛΑΓΗ ΠΑΚΕΤΟΥ → '+(newPkg||'?');
+      pendDetail='ΑΛΛΑΓΗ ΠΑΚΕΤΟΥ → '+(newPkg||'?')+' — νέα γραμμή ΑΙΤΗΣΗ δημιουργήθηκε';
+      var newId2=Date.now();
+      records.push({id:newId2,client:r.client,insurer:r.insurer,branch:r.branch,policy:'',expiry:'',payment:'UNPAID',premium:'—',premNum:0,plate:r.plate||'',email:r.email||'',phone:r.phone||'',parent:r.parent||'',note:'Αλλαγή πακέτου: '+(newPkg||''),isProposal:false,month:currentMonth,last:'Νέα ΑΙΤΗΣΗ από αλλαγή πακέτου'});
+    }
+    addLog(r,'replaced',logDetail,logDetail,'—',true);
+    addPend(r,pendDetail);
+    showToast('Αλλαγή — '+r.client.split(' ')[0],'#0f766e');renderQueue();updateBadges();
+  }else if(type==='noresp'){
+    closedIds[r.id]=true;saveClosed();
+    addLog(r,'noresp','NO_RESPONSE',gv('nrN')||'Δεν εντοπίστηκε','—',true);
+    addPend(r,'NO_RESPONSE');
+    graphPatchPolicy(r,{Close_Reason:'noresp',Last_Action:'NO_RESPONSE — '+nowStr()});
+    showToast('No Response — '+r.client.split(' ')[0],'#64748b');renderQueue();updateBadges();
+  }
+}
+
+// ════════════════════════════════════════════════════
+// MONTHLY
+// ════════════════════════════════════════════════════
+var mNames=['','Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
+var monthGrouping='date';
+function setGrouping(g){
+  monthGrouping=g;
+  ['grpDate','grpIns','grpBrn'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.className='btn trail';
+    el.style.fontWeight='normal';
+  });
+  var active={date:'grpDate',insurer:'grpIns',branch:'grpBrn'}[g];
+  var aEl=document.getElementById(active);
+  if(aEl){aEl.className='btn mail';aEl.style.fontWeight='700';}
+  renderMonthly();
+}
+function exportMonthlyExcel(){
+  var p=currentMonth.split('-').map(Number),y=p[0],m=p[1];
+  var filt=(document.getElementById('monthExportFilter')||{}).value||'all';
+  var recs=records.filter(function(r){return r.month===currentMonth;});
+  if(filt==='missing_kip')recs=recs.filter(function(r){return !r.kip||r.kip.trim()==='';});
+  else if(filt==='missing_email')recs=recs.filter(function(r){return !r.email||r.email.trim()==='';});
+  else if(filt==='missing_phone')recs=recs.filter(function(r){return !r.phone||r.phone.trim()==='';});
+  else if(filt==='missing_policy')recs=recs.filter(function(r){return !r.policy||r.policy.trim()==='';});
+  else if(filt==='missing_plate')recs=recs.filter(function(r){return !r.plate||r.plate.trim()==='';});
+  else if(filt==='unpaid')recs=recs.filter(function(r){return r.payment==='UNPAID';});
+  else if(filt==='paid')recs=recs.filter(function(r){return r.payment==='PAID'||r.payment==='PAID_PENDING';});
+  // Build CSV (opens as Excel)
+  var headers=['Ασφαλιστική','Κλάδος','Αρ. Συμβολαίου','Πελάτης','Γονική Οντότητα','Πινακίδα','ΚΗΠ','Ημ. Λήξης','Status','Email','Τηλέφωνο','Σχόλιο'];
+  var rows=[headers];
+  recs.forEach(function(r){
+    rows.push([
+      r.insurer||'',r.branch||'',r.policy||'',r.client||'',r.parent||'',
+      r.plate||'',r.kip||'',r.expiry||'',r.payment||'',
+      r.email||'',r.phone||'',r.note||''
+    ]);
+  });
+  var csv=rows.map(function(row){return row.map(function(c){return '"'+(c+'').replace(/"/g,'""')+'"';}).join(';');}).join('\n');
+  var bom='\uFEFF';
+  var blob=new Blob([bom+csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;
+  a.download='PK_Renewals_'+mNames[m]+'_'+y+(filt!=='all'?'_'+filt:'')+'.csv';
+  a.click();URL.revokeObjectURL(url);
+  showToast('Export: '+recs.length+' εγγραφές','#166534');
+}
+function changeMonth(d){var p=currentMonth.split('-').map(Number),y=p[0],m=p[1];m+=d;if(m>12){m=1;y++;}if(m<1){m=12;y--;}currentMonth=y+'-'+String(m).padStart(2,'0');renderMonthly();}
+function renderMonthly(){
+  var p=currentMonth.split('-').map(Number),y=p[0],m=p[1];
+  document.getElementById('monthTitle').textContent=mNames[m]+' '+y;
+  var recs=records.filter(function(r){return r.month===currentMonth;}).sort(function(a,b){return daysDiff(a.expiry)-daysDiff(b.expiry);});
+  var unp=recs.filter(function(r){return r.payment==='UNPAID';}).length;
+  var pai=recs.filter(function(r){return r.payment==='PAID';}).length;
+  var nts=recs.filter(function(r){return r.note&&r.note.trim();}).length;
+  var totAmt=recs.reduce(function(s,r){return s+r.premNum;},0).toFixed(2);
+  document.getElementById('mStats').innerHTML='<div class="mstat tot">Σύνολο: '+recs.length+' · '+totAmt+'€</div><div class="mstat unp">Απλήρωτα: '+unp+'</div><div class="mstat pai">Εξοφλημένα: '+pai+'</div>'+(nts>0?'<div class="mstat nts">&#128172; '+nts+'</div>':'');
+  var grid=document.getElementById('monthGrid');grid.innerHTML='';
+  if(!recs.length){grid.innerHTML='<div style="text-align:center;padding:28px;color:var(--text3)">Κανένα συμβόλαιο αυτόν τον μήνα.</div>';return;}
+
+  // Build groups
+  var groups={};
+  recs.forEach(function(r){
+    var key;
+    if(monthGrouping==='insurer')key=r.insurer||'—';
+    else if(monthGrouping==='branch')key=r.branch||'—';
+    else{var d=r.expiry.split('/')[0];key=String(d).padStart(2,'0')+'/'+String(m).padStart(2,'0')+'/'+y;}
+    if(!groups[key])groups[key]=[];
+    groups[key].push(r);
+  });
+
+  var keys=Object.keys(groups).sort();
+  keys.forEach(function(key){
+    var rows=groups[key];
+    var dayTot=rows.reduce(function(s,r){return s+r.premNum;},0).toFixed(2);
+    var grp=document.createElement('div');grp.className='mday-grp';
+    var grpIcon=monthGrouping==='insurer'?'🏢 ':monthGrouping==='branch'?'📋 ':'';
+    var hdr='<div class="mday-hdr"><span class="mday-date">'+grpIcon+key+'</span><span class="mday-cnt">'+rows.length+' συμβόλαιο'+(rows.length>1?'α':'')+'</span><span class="mday-tot">'+dayTot+'€</span></div>';
+    var cards=rows.map(function(r){
+      var sc=r.payment==='PAID'?'paid':r.payment==='PAID_PENDING'?'pend':'unpaid';
+      var cnt=records.filter(function(x){return x.client===r.client&&x.month===r.month;}).length;
+      var mpl=cnt>1?'<span class="pill mp">&#128203; '+cnt+'</span>':'';
+      var par=r.parent&&r.parent!==r.client?'<span style="font-size:9px;color:#166534">&#128106; '+r.parent+'</span>':'';
+      var prop=r.isProposal?'<span class="pill prop">&#9888; ΠΡΟΤΑΣΗ</span>':'';
+      var noteHtml=r.note&&r.note.trim()?'<div class="note-prev" onclick="toggleNote('+r.id+')" title="'+r.note.replace(/"/g,'&quot;')+'">&#128172; '+r.note.substring(0,45)+(r.note.length>45?'...':'')+'</div>':'<div class="note-add" onclick="toggleNote('+r.id+')">+ Σχόλιο</div>';
+      // Show expiry date when grouping by insurer/branch
+      var expiryShow=monthGrouping!=='date'?'<div style="font-size:9px;color:var(--teal);font-family:IBM Plex Mono,monospace">📅 '+r.expiry+'</div>':'';
+      return '<div class="mcard" id="mcard-'+r.id+'">'+
+        '<div class="ms '+sc+'"></div>'+
+        '<div style="padding:0 8px"><div style="font-weight:600;font-size:11px;max-width:138px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+r.client+'</div>'+
+          '<div style="font-size:9px;color:var(--text3);font-family:IBM Plex Mono,monospace">'+(r.policy||'—')+'</div>'+expiryShow+par+prop+'</div>'+
+        '<div style="padding:0 8px;border-left:1px solid var(--border)"><div style="font-size:11px">'+r.insurer+'</div><div style="font-size:9px;color:var(--text2)">'+r.branch+'</div></div>'+
+        '<div style="padding:0 8px;border-left:1px solid var(--border);font-family:IBM Plex Mono,monospace;font-weight:700;font-size:12px">'+r.premium+'€</div>'+
+        '<div style="padding:0 8px;border-left:1px solid var(--border)">'+payBadge(r.payment)+'</div>'+
+        '<div style="padding:0 8px;border-left:1px solid var(--border)">'+mpl+'</div>'+
+        '<div style="padding:0 8px;border-left:1px solid var(--border)">'+noteHtml+'</div>'+
+        '<div style="padding:0 8px;border-left:1px solid var(--border);display:flex;gap:4px">'+
+          '<button class="btn mail" style="font-size:9px;padding:2px 6px" onclick="jumpTo('+r.id+')">→ Queue</button>'+
+          '<button class="btn trail" style="font-size:9px;padding:2px 6px" onclick="openTrail('+r.id+')">Trail</button>'+
+        '</div></div>'+
+        '<div class="note-editor" id="ned-'+r.id+'">'+
+          '<textarea class="note-ta" id="nta-'+r.id+'" placeholder="Σχόλιο για αυτό το συμβόλαιο...">'+(r.note||'')+'</textarea>'+
+          '<div class="note-actions"><button class="note-save-btn" onclick="saveNote('+r.id+')">&#10003; Save</button><button class="note-cancel-btn" onclick="cancelNote('+r.id+')">Άκυρο</button></div></div>';
+    }).join('');
+    grp.innerHTML=hdr+cards;grid.appendChild(grp);
+  });
+}
+function toggleNote(id){var n=document.getElementById('ned-'+id);if(!n)return;n.classList.toggle('open');if(n.classList.contains('open')){var ta=document.getElementById('nta-'+id);if(ta){ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);}}}
+function saveNote(id){var r=records.find(function(x){return x.id===id;});if(!r)return;var ta=document.getElementById('nta-'+id);if(!ta)return;r.note=ta.value.trim();document.getElementById('ned-'+id).classList.remove('open');saveNotes();graphPatchPolicy(r,{Note:r.note});showToast(r.note?'Σχόλιο αποθηκεύτηκε':'Σχόλιο διαγράφηκε','#b45309');renderMonthly();renderQueue();}
+function cancelNote(id){var n=document.getElementById('ned-'+id);if(n)n.classList.remove('open');}
+
+// ════════════════════════════════════════════════════
+// SO REGISTRY
+// ════════════════════════════════════════════════════
+function renderSORegistry(){
+  var body=document.getElementById('soBody');
+  var stM={active:['active','&#128309; Ενεργή'],pending_confirm:['pconf','&#9203; Επιβεβαίωση;'],exception:['exc','&#128680; Exception']};
+  var periodLabel={annual:'Ετήσια',semiannual:'Εξαμηνιαία',quarterly:'Τριμηνιαία',monthly:'Μηνιαία'};
+  body.innerHTML=soRegistry.map(function(r){
+    var st=stM[r.soStatus]||stM['active'];
+    var pLbl=periodLabel[r.period]||'Ετήσια';
+    var pColor=r.period==='monthly'?'color:var(--orange)':r.period==='quarterly'?'color:var(--yellow)':'color:var(--teal)';
+    var act=r.soStatus==='pending_confirm'?'<button class="btn chk" style="font-size:10px" onclick="soConfirm('+r.id+',true)">Κρατάμε</button> <button class="btn cncl" style="font-size:10px" onclick="soConfirm('+r.id+',false)">Άρση</button>':r.soStatus==='exception'?'<button class="btn cncl" style="font-size:10px">→ Queue</button>':'<span style="font-size:10px;color:var(--text3)">Ενεργή</span>';
+    return '<div class="so-row"><div class="so-st"></div>'+
+      '<div style="padding:0 8px;font-family:IBM Plex Mono,monospace;font-size:12px;font-weight:600;color:var(--teal)">'+r.expiry+'<div style="font-size:9px;'+pColor+'">'+pLbl+'</div></div>'+
+      '<div style="padding:0 8px;border-left:1px solid var(--border)"><div style="font-weight:600;font-size:11px">'+r.client+'</div><div style="font-size:9px;color:var(--text3);font-family:IBM Plex Mono,monospace">'+r.policy+'</div></div>'+
+      '<div style="padding:0 8px;border-left:1px solid var(--border);font-size:11px">'+r.insurer+'<br><span style="color:var(--text2);font-size:9px">'+r.branch+'</span></div>'+
+      '<div style="padding:0 8px;border-left:1px solid var(--border);font-family:IBM Plex Mono,monospace;font-weight:700;font-size:11px">'+r.premium+'€</div>'+
+      '<div style="padding:0 8px;border-left:1px solid var(--border)"><span class="so-badge '+st[0]+'">'+st[1]+'</span></div>'+
+      '<div style="padding:0 8px;border-left:1px solid var(--border);font-size:10px;color:var(--text2)">'+(r.confirmThisYear||'Αναμένεται')+'</div>'+
+      '<div style="padding:0 8px;border-left:1px solid var(--border);display:flex;gap:4px;align-items:center">'+act+'</div></div>';
+  }).join('');
+}
+function soConfirm(id,keep){var r=soRegistry.find(function(x){return x.id===id;});if(!r)return;r.soStatus='active';r.confirmThisYear=keep?fmtDate(TODAY):fmtDate(TODAY)+' — Άρση';showToast(keep?'Πάγια επιβεβαιώθηκε':'Πάγια αφαιρέθηκε','#0f766e');renderSORegistry();}
+
+// ════════════════════════════════════════════════════
+// RAW
+// ════════════════════════════════════════════════════
+function renderRaw(){
+  var body=document.getElementById('rawBody');
+  var srcL={mv:['mv','iView'],pt:['pt','Portal'],mn:['mn','Manual']};
+  var stL={new:'<span style="font-size:10px;font-weight:700;color:var(--orange)">&#9679; Νέο</span>',ok:'<span style="font-size:10px;font-weight:700;color:var(--green)">&#10003; OK</span>',dup:'<span style="font-size:10px;color:var(--text3)">&#8856; Διπλό</span>'};
+  body.innerHTML=rawData.map(function(r,i){
+    var src=srcL[r.source]||srcL['mn'];
+    var propBadge=r.isProposal?'<span class="pill prop" style="margin-left:4px">&#9888; ΠΡΟΤΑΣΗ</span>':'';
+    return '<div class="raw-row'+(r.status==='new'?' nw':'')+(r.isProposal?' prop':'')+'">'+
+      '<div style="padding:0 8px;font-size:10px;color:var(--text3)">'+(i+1)+'</div>'+
+      '<div style="padding:0 8px;font-size:11px;font-weight:600">'+r.client+propBadge+'</div>'+
+      '<div style="padding:0 8px;font-size:10px">'+r.insurer+'<br><span style="color:var(--text3)">'+r.branch+'</span></div>'+
+      '<div style="padding:0 8px;font-size:10px;font-family:IBM Plex Mono,monospace">'+(r.policy||'<span style="color:var(--orange)">—</span>')+'</div>'+
+      '<div style="padding:0 8px;font-size:10px;font-family:IBM Plex Mono,monospace">'+r.expiry+'</div>'+
+      '<div style="padding:0 8px;font-size:11px;font-weight:700;font-family:IBM Plex Mono,monospace">'+r.premium+'€</div>'+
+      '<div style="padding:0 8px"><span class="rsrc '+src[0]+'">'+src[1]+'</span></div>'+
+      '<div style="padding:0 8px;display:flex;align-items:center;gap:6px">'+stL[r.status]+(r.status==='new'?'<button class="btn promo" style="font-size:9px;padding:2px 6px" onclick="promoteOne('+r.id+')">&#11014; Promote</button>':'')+'</div>'+
+    '</div>';
+  }).join('');
+}
+function promoteOne(id){
+  var r=rawData.find(function(x){return x.id===id;});if(!r)return;
+  // Check for duplicate by policy OR plate
+  var dupByPolicy=r.policy&&records.find(function(x){return x.policy&&x.policy===r.policy;});
+  var dupByPlate=r.plate&&records.find(function(x){return x.plate&&x.plate===r.plate;});
+  var dup=dupByPolicy||dupByPlate;
+  if(dup){
+    var reason=dupByPolicy?'Αρ. Συμβολαίου: '+r.policy:'Πινακίδα: '+r.plate;
+    document.getElementById('mIcon').textContent='⚠️';
+    document.getElementById('mTitle').textContent='Πιθανό Διπλότυπο';
+    document.getElementById('mSub').textContent='Ελέγξτε πριν συνεχίσετε';
+    document.getElementById('mBody').innerHTML=
+      '<div class="mwarn">Βρέθηκε ήδη εγγραφή με το ίδιο '+reason+'.</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0">'+
+        '<div style="background:var(--bg);border-radius:5px;padding:10px;font-size:11px"><div style="font-weight:700;margin-bottom:6px;color:var(--orange)">📥 Νέα γραμμή (RAW)</div>'+
+          '<div>'+r.client+'</div><div style="color:var(--text2)">'+r.insurer+' · '+r.branch+'</div>'+
+          '<div style="font-family:IBM Plex Mono,monospace">'+( r.policy||'—')+'</div>'+
+          '<div style="color:var(--text2)">'+(r.plate||'—')+' · Λήξη '+r.expiry+'</div></div>'+
+        '<div style="background:var(--bg);border-radius:5px;padding:10px;font-size:11px"><div style="font-weight:700;margin-bottom:6px;color:var(--blue)">📋 Υπάρχουσα εγγραφή</div>'+
+          '<div>'+dup.client+'</div><div style="color:var(--text2)">'+dup.insurer+' · '+dup.branch+'</div>'+
+          '<div style="font-family:IBM Plex Mono,monospace">'+(dup.policy||'—')+'</div>'+
+          '<div style="color:var(--text2)">'+(dup.plate||'—')+' · Λήξη '+dup.expiry+'</div></div>'+
+      '</div>'+
+      '<div style="font-size:11px;color:var(--text2)">Αν είναι διαφορετική ανανέωση, επιβεβαιώστε Promote. Αν είναι διπλό, ακυρώστε.</div>';
+    window._pendingPromoteId=id;
+    document.getElementById('mFoot').innerHTML=
+      '<button class="mbtn secondary" onclick="closeModal()">&#10005; Ακύρωση (Διπλό)</button>'+
+      '<button class="mbtn primary" onclick="forcePromote('+id+')">&#11014; Promote Ούτως ή Άλλως</button>';
+    document.getElementById('modalOverlay').classList.add('open');
+    return;
+  }
+  r.status='ok';renderRaw();showToast('Promoted: '+r.client,'#166534');
+}
+function forcePromote(id){
+  var r=rawData.find(function(x){return x.id===id;});
+  if(r){r.status='ok';}
+  closeModal();renderRaw();showToast('Promoted (επιβεβαιώθηκε)','#166534');
+}
+function promoteAll(){
+  var news=rawData.filter(function(r){return r.status==='new';});
+  var hasDups=news.some(function(r){
+    return (r.policy&&records.find(function(x){return x.policy&&x.policy===r.policy;}))||
+           (r.plate&&records.find(function(x){return x.plate&&x.plate===r.plate;}));
+  });
+  if(hasDups){showToast('Υπάρχουν πιθανά διπλότυπα — Promote ένα-ένα για έλεγχο','#c2410c');return;}
+  news.forEach(function(r){r.status='ok';});
+  renderRaw();showToast('Όλα Promoted','#166534');
+}
+
+// ════════════════════════════════════════════════════
+// ARCHIVE
+// ════════════════════════════════════════════════════
+function exportRawExcel(){
+  var fromVal=document.getElementById('rawExFrom').value; // yyyy-mm-dd or ''
+  var toVal=document.getElementById('rawExTo').value;
+  var filt=(document.getElementById('rawExFilter')||{}).value||'all';
+
+  // Combine rawData + promoted records into unified list
+  var allRaw=rawData.map(function(r){
+    return {client:r.client,insurer:r.insurer,branch:r.branch,policy:r.policy||'',
+      expiry:r.expiry||'',premium:r.premium||'',plate:r.plate||'',email:r.email||'',
+      phone:r.phone||'',kip:r.kip||'',parent:r.parent||'',note:r.note||'',
+      isProposal:r.isProposal,status:r.status,source:r.source||''};
+  });
+  // Also include promoted records (in main records array)
+  records.forEach(function(r){
+    if(!rawData.find(function(x){return x.policy&&x.policy===r.policy&&r.policy;}))
+      allRaw.push({client:r.client,insurer:r.insurer,branch:r.branch,policy:r.policy||'',
+        expiry:r.expiry||'',premium:r.premium||'',plate:r.plate||'',email:r.email||'',
+        phone:r.phone||'',kip:r.kip||'',parent:r.parent||'',note:r.note||'',
+        isProposal:r.isProposal,status:'promoted',source:''});
+  });
+
+  // Date filter by expiry dd/mm/yyyy
+  function expiryToDate(s){if(!s)return null;var p=s.split('/');if(p.length===3)return new Date(p[2],p[1]-1,p[0]);return null;}
+  var fromD=fromVal?new Date(fromVal):null;
+  var toD=toVal?new Date(toVal):null;
+  if(toD)toD.setHours(23,59,59);
+
+  allRaw=allRaw.filter(function(r){
+    if(!fromD&&!toD)return true;
+    var d=expiryToDate(r.expiry);if(!d)return !fromD&&!toD;
+    if(fromD&&d<fromD)return false;
+    if(toD&&d>toD)return false;
+    return true;
+  });
+
+  // Status filter
+  if(filt==='new')allRaw=allRaw.filter(function(r){return r.status==='new';});
+  else if(filt==='promoted')allRaw=allRaw.filter(function(r){return r.status==='ok'||r.status==='promoted';});
+  else if(filt==='dup')allRaw=allRaw.filter(function(r){return r.status==='dup';});
+  else if(filt==='missing_kip')allRaw=allRaw.filter(function(r){return !r.kip||r.kip.trim()==='';});
+  else if(filt==='missing_email')allRaw=allRaw.filter(function(r){return !r.email||r.email.trim()==='';});
+  else if(filt==='missing_policy')allRaw=allRaw.filter(function(r){return !r.policy||r.policy.trim()==='';});
+  else if(filt==='proposal')allRaw=allRaw.filter(function(r){return r.isProposal;});
+
+  var headers=['Πελάτης','Γονική Οντότητα','Ασφαλιστική','Κλάδος','Αρ. Συμβολαίου','Πινακίδα','Ημ. Λήξης','ΚΗΠ','Email','Τηλέφωνο','Status','Πηγή','ΠΡΟΤΑΣΗ','Σχόλιο'];
+  var rows=[headers];
+  allRaw.forEach(function(r){
+    rows.push([
+      r.client,r.parent,r.insurer,r.branch,r.policy,r.plate,
+      r.expiry,r.kip,r.email,r.phone,r.status,r.source,
+      r.isProposal?'ΝΑΙ':'',r.note
+    ]);
+  });
+
+  var csv=rows.map(function(row){return row.map(function(c){return '"'+(c+'').replace(/"/g,'""')+'"';}).join(';');}).join('\n');
+  var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;
+  var fromLbl=fromVal||'*';var toLbl=toVal||'*';
+  a.download='PK_RAW_'+fromLbl+'_'+toLbl+(filt!=='all'?'_'+filt:'')+'.csv';
+  a.click();URL.revokeObjectURL(url);
+  showToast('Export: '+allRaw.length+' εγγραφές','#166534');
+}
+
+{cancelled:'✗ Ακυρώθηκε',norenewal:'🚫 Δεν Ανανέωσε',replaced:'🔄 Αλλού',noresp:'👻 Δεν Απάντησε',paid_sent:'✓ Ολοκληρώθηκε'};
+function getArchiveStatus(id){
+  var entries=actLog.filter(function(e){return e.policy===records.find(function(r){return r.id===id;})||''.policy||e.client===(records.find(function(r){return r.id===id;})||{}).client;});
+  for(var t of ['cancelled','norenewal','replaced','noresp']){if(entries.find(function(e){return e.type===t;}))return t;}
+  return 'paid_sent';
+}
+function renderArchive(q){
+  var body=document.getElementById('archBody');
+  var filter=(document.getElementById('archFilter')||{}).value||'all';
+  var closed=records.filter(function(r){return !!closedIds[r.id];});
+  if(q&&q.length>1){var ql=q.toLowerCase();closed=closed.filter(function(r){return ['client','policy','plate','insurer','branch','email'].some(function(f){return r[f]&&r[f].toLowerCase().indexOf(ql)>=0;});});}
+  if(filter!=='all'){
+    closed=closed.filter(function(r){
+      var entries=actLog.filter(function(e){return e.client===r.client||e.policy===r.policy;});
+      if(filter==='paid')return entries.some(function(e){return e.type==='policy';});
+      if(filter==='cancelled')return entries.some(function(e){return e.type==='cancelled';});
+      if(filter==='norenewal')return entries.some(function(e){return e.type==='norenewal';});
+      if(filter==='replaced')return entries.some(function(e){return e.type==='replaced';});
+      if(filter==='noresp')return entries.some(function(e){return e.type==='noresp';});
+      return true;
+    });
+  }
+  document.getElementById('archCount').textContent=closed.length+' εγγραφές';
+  if(!closed.length){body.innerHTML='<div style="padding:18px;text-align:center;color:var(--text3)">Κανένα αποτέλεσμα.</div>';return;}
+  var scMap={'cancelled':'var(--red)','norenewal':'var(--red)','replaced':'var(--teal)','noresp':'var(--text3)','paid_sent':'var(--green)'};
+  body.innerHTML=closed.map(function(r){
+    var entries=actLog.filter(function(e){return e.client===r.client||e.policy===r.policy;});
+    var lastEntry=entries[0];
+    var stType='paid_sent';
+    for(var t of ['cancelled','norenewal','replaced','noresp']){if(entries.find(function(e){return e.type===t;})){stType=t;break;}}
+    var stLabel=archiveStatuses[stType]||'✓';
+    var sc=scMap[stType]||'var(--green)';
+    var propFlag=r.isProposal?'<span class="pill prop" style="margin-left:4px">⚠️</span>':'';
+    return '<div style="display:grid;grid-template-columns:3px 155px 105px 110px 78px 80px 100px 1fr;min-height:46px;border-bottom:1px solid var(--border);align-items:center;" onmouseover="this.style.background=\'#f8fbff\'" onmouseout="this.style.background=\'\'">'+
+      '<div style="align-self:stretch;background:'+sc+'"></div>'+
+      '<div style="padding:0 8px"><div style="font-weight:600;font-size:11px">'+r.client+propFlag+'</div><div style="font-size:9px;color:var(--text3);font-family:IBM Plex Mono,monospace">'+(r.plate||'')+'</div></div>'+
+      '<div style="padding:0 8px;border-left:1px solid var(--border);font-size:11px">'+r.insurer+'<div style="font-size:9px;color:var(--text2)">'+r.branch+'</div></div>'+
+      '<div style="padding:0 8px;border-left:1px solid var(--border);font-size:10px;font-family:IBM Plex Mono,monospace">'+(r.policy||'—')+'</div>'+
+      '<div style="padding:0 8px;border-left:1px solid var(--border);font-size:10px;font-family:IBM Plex Mono,monospace">'+r.expiry+'</div>'+
+      '<div style="padding:0 8px;border-left:1px solid var(--border);font-weight:700;font-size:11px;font-family:IBM Plex Mono,monospace">'+r.premium+'€</div>'+
+      '<div style="padding:0 8px;border-left:1px solid var(--border);font-size:10px;font-weight:600;color:'+sc+'">'+stLabel+'</div>'+
+      '<div style="padding:0 8px;border-left:1px solid var(--border);display:flex;gap:5px;align-items:center">'+
+        '<button class="btn trail" style="font-size:9px;padding:2px 7px" onclick="openTrail('+r.id+')">&#128203; Trail</button>'+
+        (lastEntry?'<span style="font-size:9px;color:var(--text3);font-family:IBM Plex Mono,monospace">'+lastEntry.time.split(' ')[0]+'</span>':'')+
+      '</div></div>';
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════
+// LOG
+// ════════════════════════════════════════════════════
+function filterLog(f,el){logFilter=f;document.querySelectorAll('.lf').forEach(function(x){x.classList.remove('active');});el.classList.add('active');renderLog();}
+function renderLog(){
+  var body=document.getElementById('logBody');
+  var closeT=['cancelled','norenewal','replaced','noresp'];
+  var items=actLog;
+  if(logFilter==='mail')items=items.filter(function(x){return x.type==='mail'||x.type==='bulk';});
+  else if(logFilter==='call')items=items.filter(function(x){return x.type==='call';});
+  else if(logFilter==='paid')items=items.filter(function(x){return x.type==='paid'||x.type==='policy';});
+  else if(logFilter==='close')items=items.filter(function(x){return closeT.indexOf(x.type)>=0;});
+  else if(logFilter==='snooze')items=items.filter(function(x){return x.type==='snooze';});
+  else if(logFilter==='mech')items=items.filter(function(x){return x.needsMech&&!x.mechDone;});
+  if(!items.length){body.innerHTML='<div style="padding:18px;text-align:center;color:var(--text3)">Καμία εγγραφή.</div>';return;}
+  var tc={mail:'mail',call:'call',paid:'paid',policy:'policy',cancelled:'cancelled',norenewal:'norenewal',replaced:'replaced',noresp:'noresp',bulk:'bulk',snooze:'snooze'};
+  body.innerHTML=items.map(function(e){
+    var t=tc[e.type]||'mail';
+    var mh=!e.needsMech?'<span class="mst na">—</span>':e.mechDone?'<span class="mst done">&#10003; Done</span>':'<span class="mst pend" onclick="markMD(\''+e.time+'\')">&#9888; Εκκρεμεί</span>';
+    return '<div class="log-row">'+
+      '<div style="padding:0 8px;font-size:10px;font-family:IBM Plex Mono,monospace;color:var(--text2)">'+e.time+'</div>'+
+      '<div style="padding:0 8px;font-size:10px;font-weight:700">'+e.user+'</div>'+
+      '<div style="padding:0 8px"><span class="atag '+t+'">'+e.label+'</span></div>'+
+      '<div style="padding:0 8px"><div style="font-size:11px;font-weight:600">'+e.client+'</div><div style="font-size:9px;color:var(--text3)">'+(e.parent&&e.parent!==e.client?'&#128106; '+e.parent:e.policy)+'</div></div>'+
+      '<div style="padding:0 8px;font-size:10px;color:var(--text2)">'+e.detail+'</div>'+
+      '<div style="padding:0 8px;font-size:10px;font-weight:700;font-family:IBM Plex Mono,monospace">'+e.amt+'</div>'+
+      '<div style="padding:0 8px">'+mh+'</div></div>';
+  }).join('');
+}
+function markMD(time){var e=actLog.find(function(x){return x.time===time;});if(e){e.mechDone=true;saveLog();renderLog();showToast('Μηχανογράφηση Done','#166534');}}
+
+// ════════════════════════════════════════════════════
+// PENDING
+// ════════════════════════════════════════════════════
+function renderPend(){
+  var body=document.getElementById('pendBody');
+  var items=pendRegs.filter(function(p){return!p.done;});
+  if(!items.length){body.innerHTML='<div class="empty-row">&#10003; Όλα καταχωρήθηκαν!</div>';return;}
+  body.innerHTML=items.map(function(p){
+    var pi=p.parent&&p.parent!==p.client?' · &#128106; '+p.parent:'';
+    return '<div class="preg-card"><div style="align-self:stretch;background:var(--orange)"></div>'+
+      '<div class="preg-info"><div class="preg-client">'+cpBtn(p.client,'Πελάτης')+' · '+cpBtn(p.policy||'—','Αρ.Συμβολαίου')+'</div>'+
+      '<div class="preg-detail">'+cpBtn(p.premium+'€','Ποσό')+' · '+cpBtn(p.email,'Email')+' · '+cpBtn(p.phone,'Τηλ.')+pi+'</div>'+
+      '<div class="preg-what">'+p.what+'</div></div>'+
+      '<div class="preg-acts"><button class="btn mech" onclick="markPD(\''+p.uid+'\')">&#10003; Καταχωρήθηκε</button></div></div>';
+  }).join('');
+}
+function markPD(uid){var p=pendRegs.find(function(x){return x.uid===uid;});if(p){p.done=true;savePend();renderPend();updateBadges();showToast('Καταχωρήθηκε','#166534');graphPatchPend(uid,{Done:true});}}
+
+// ════════════════════════════════════════════════════
+// KPIs
+// ════════════════════════════════════════════════════
+function renderKPI(){
+  var total=records.length;
+  var paid=records.filter(function(r){return r.payment==='PAID';}).length;
+  var pending=records.filter(function(r){return r.payment==='PAID_PENDING';}).length;
+  var unpaid=records.filter(function(r){return r.payment==='UNPAID'&&!closedIds[r.id];}).length;
+  var closed=Object.keys(closedIds).length;
+  var totalAmt=records.reduce(function(s,r){return s+r.premNum;},0).toFixed(2);
+  var paidAmt=records.filter(function(r){return r.payment==='PAID';}).reduce(function(s,r){return s+r.premNum;},0).toFixed(2);
+  var pct=Math.round(paid/total*100)||0;
+  var logCalls=actLog.filter(function(e){return e.type==='call';}).length;
+  var logMails=actLog.filter(function(e){return e.type==='mail'||e.type==='bulk';}).length;
+  var kpiHtml='<div class="kpi-grid">'+
+    '<div class="kpi-card"><div class="kpi-label">Σύνολο Μήνα</div><div class="kpi-val">'+total+'</div><div class="kpi-sub">συμβόλαια</div><div class="kpi-bar-wrap"><div class="kpi-bar-fill" style="width:100%;background:var(--blue)"></div></div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">Εξοφλημένα</div><div class="kpi-val" style="color:var(--green)">'+paid+'</div><div class="kpi-sub">'+paidAmt+'€</div><div class="kpi-pct good">'+pct+'% ανανέωσης</div><div class="kpi-bar-wrap"><div class="kpi-bar-fill" style="width:'+pct+'%;background:var(--green)"></div></div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">Απλήρωτα</div><div class="kpi-val" style="color:var(--red)">'+unpaid+'</div><div class="kpi-sub">εκκρεμή ανανεώσεις</div><div class="kpi-pct warn">'+Math.round(unpaid/total*100)+'% εκκρεμεί</div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">Δυνητικά Έσοδα</div><div class="kpi-val" style="font-size:18px">'+totalAmt+'€</div><div class="kpi-sub">σύνολο ασφαλίστρων</div></div>'+
+  '</div>'+
+  '<div class="kpi-grid">'+
+    '<div class="kpi-card"><div class="kpi-label">Ενέργειες Log</div><div class="kpi-val">'+actLog.length+'</div><div class="kpi-sub">'+logMails+' mails · '+logCalls+' calls</div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">Closed</div><div class="kpi-val">'+closed+'</div><div class="kpi-sub">ολοκληρωμένα</div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-val" style="color:var(--yellow)">'+pending+'</div><div class="kpi-sub">PAID_PENDING επαλήθευση</div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">Εκκρ. Μηχ/φηση</div><div class="kpi-val" style="color:var(--orange)">'+pendRegs.filter(function(p){return!p.done;}).length+'</div><div class="kpi-sub">εκκρεμείς καταχωρήσεις</div></div>'+
+  '</div>';
+  document.getElementById('kpiBody').innerHTML=kpiHtml;
+}
+
+// ════════════════════════════════════════════════════
+// NAV
+// ════════════════════════════════════════════════════
+function switchTab(tab){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  var pg=document.getElementById('page-'+tab),tb=document.getElementById('tab-'+tab);
+  if(pg)pg.classList.add('active');if(tb)tb.classList.add('active');
+  var sb=document.getElementById('sumBar');if(sb)sb.style.display=tab==='queue'?'flex':'none';
+  if(tab==='monthly')renderMonthly();
+  if(tab==='so')renderSORegistry();
+  if(tab==='raw')renderRaw();
+  if(tab==='kpi')renderKPI();
+  if(tab==='archive')renderArchive('');
+}
+function toggleBkt(hdr){var b=hdr.nextElementSibling;b.classList.toggle('hidden');var ch=hdr.querySelector('.bkt-chev');if(ch)ch.style.transform=b.classList.contains('hidden')?'rotate(-90deg)':'';}
+function scrollB(id){var el=document.getElementById('bucket-'+id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
+
+// INIT
+initMSAL();
+// Set default date range for RAW export: today → +3 months
+(function(){
+  var f=document.getElementById('rawExFrom');
+  var t=document.getElementById('rawExTo');
+  if(f&&t){
+    var now=new Date(TODAY);
+    var end=new Date(TODAY);end.setMonth(end.getMonth()+3);
+    function fmt(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+    f.value=fmt(now);t.value=fmt(end);
+  }
+})();
+</script>
+</div><!-- /appWrap -->
+</body>
+</html>
