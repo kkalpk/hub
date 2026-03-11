@@ -715,75 +715,142 @@ function listPath(listName) {
 // ════════════════════════════════════════════════════
 async function discoverSiteAndLists() {
   setLoading('Σύνδεση με Microsoft Lists...', 30);
-
   var needed = ['PK_Policies','PK_ActivityLog','PK_PendingReg','PK_SORegistry'];
-
-  setLoading('Φόρτωση Lists...', 45);
-
-  // Use Beta API to get personal lists directly
   var token = await getToken();
-  var betaResp = await fetch('https://graph.microsoft.com/beta/me/lists?$select=id,displayName,parentReference&$top=100', {
-    headers: { 'Authorization': 'Bearer ' + token }
-  });
-  var betaData = await betaResp.json();
-  var betaLists = betaData.value || [];
-  console.log('Beta me/lists:', betaLists.map(function(l){
-    return l.displayName + ' | site:' + (l.parentReference&&l.parentReference.siteId||'?');
-  }));
 
-  betaLists.forEach(function(l) {
-    if (needed.indexOf(l.displayName) >= 0) {
-      graphListIds[l.displayName] = l.id;
-      if (!graphSiteId && l.parentReference && l.parentReference.siteId) {
-        graphSiteId = l.parentReference.siteId;
-      }
-    }
-  });
-
-  var found = needed.filter(function(n){ return !!graphListIds[n]; });
-  if (found.length === needed.length) {
-    console.log('All lists found via beta! SiteId:', graphSiteId);
-    setLoading('Φόρτωση δεδομένων...', 55);
-    return;
+  // ── DIAGNOSTIC HELPER ──────────────────────────────
+  async function tryListsAt(url, label) {
+    try {
+      var r = await fetch('https://graph.microsoft.com/v1.0' + url, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      var d = await r.json();
+      if (d.error) { console.warn(label + ' → ERROR:', d.error.code, d.error.message); return []; }
+      var items = d.value || (d.id ? [d] : []);
+      console.log(label + ' (' + items.length + '):', items.map(function(x){
+        return '"' + (x.displayName||x.name||x.id) + '" [' + x.id + ']';
+      }).join(' | '));
+      return items;
+    } catch(e) { console.warn(label + ' → FETCH ERR:', e.message); return []; }
   }
 
-  // Fallback: search known sites
-  console.log('Beta found ' + found.length + '/' + needed.length + ', trying fallback...');
-  var driveInfo = await graphCall('GET', '/me/drive?$select=webUrl');
-  var hostname = new URL(driveInfo.webUrl).hostname;
+  // 1. Beta me/lists (personal lists)
+  try {
+    var br = await fetch('https://graph.microsoft.com/beta/me/lists?$select=id,displayName,parentReference&$top=500', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    var bd = await br.json();
+    var bl = bd.value || [];
+    console.log('=== BETA me/lists (' + bl.length + ') ===');
+    bl.forEach(function(l){
+      console.log(' •', l.displayName, '| id:', l.id, '| siteId:', (l.parentReference&&l.parentReference.siteId||'?'));
+      if (needed.indexOf(l.displayName) >= 0) {
+        graphListIds[l.displayName] = l.id;
+        if (!graphSiteId && l.parentReference && l.parentReference.siteId)
+          graphSiteId = l.parentReference.siteId;
+      }
+    });
+  } catch(e) { console.warn('beta/me/lists failed:', e.message); }
 
-  var siteAttempts = [
-    hostname + ':/personal/kk_pkinsurance_gr',
-    hostname,
-    hostname.replace('-my.','.')
+  if (needed.every(function(n){return !!graphListIds[n];})) {
+    console.log('✅ All found via beta/me/lists, siteId:', graphSiteId);
+    setLoading('Φόρτωση δεδομένων...', 55); return;
+  }
+
+  // 2. Get user's personal site via /me/followedSites and all drives
+  var driveInfo = await graphCall('GET', '/me/drive?$select=webUrl,id');
+  var hostname = new URL(driveInfo.webUrl).hostname; // pkinsurancegr-my.sharepoint.com
+  console.log('=== My OneDrive hostname:', hostname, 'driveId:', driveInfo.id, '===');
+
+  // 3. Get personal site via /me → look for personal site
+  var meInfo = await graphCall('GET', '/me?$select=userPrincipalName,id');
+  console.log('UPN:', meInfo.userPrincipalName, 'userId:', meInfo.id);
+
+  // 4. Try all site path combinations
+  var upn = meInfo.userPrincipalName || '';
+  var userPart = upn.replace('@','_').replace(/\./g,'_').toLowerCase();
+  console.log('userPart:', userPart);
+
+  var sitePaths = [
+    '/me/followedSites?$select=id,webUrl&$top=50',
+    '/sites/' + hostname + ':/personal/' + userPart + ':?$select=id,webUrl',
+    '/sites/' + hostname + '?$select=id,webUrl',
+    '/sites/' + hostname.replace('-my.', '.') + '?$select=id,webUrl',
+    '/users/' + meInfo.id + '/sites/root?$select=id,webUrl'
   ];
 
-  for (var i = 0; i < siteAttempts.length; i++) {
+  var allSiteIds = {};
+
+  for (var i = 0; i < sitePaths.length; i++) {
     try {
-      var s = await graphCall('GET', '/sites/' + siteAttempts[i] + '?$select=id');
-      var sid = s.id;
-      var lr = await graphCall('GET', '/sites/' + sid + '/lists?$select=id,displayName&$top=200');
-      var llist = lr.value || [];
-      console.log('Site', siteAttempts[i], 'lists:', llist.map(function(x){return x.displayName;}));
-      var matchCount = 0;
-      llist.forEach(function(l) {
-        if (needed.indexOf(l.displayName) >= 0) {
-          graphListIds[l.displayName] = l.id;
-          graphSiteId = sid;
-          matchCount++;
+      var sr = await fetch('https://graph.microsoft.com/v1.0' + sitePaths[i], {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      var sd = await sr.json();
+      if (sd.error) { console.warn('Path', sitePaths[i], '→', sd.error.code); continue; }
+      var sites = sd.value || (sd.id ? [sd] : []);
+      sites.forEach(function(s){
+        if (s.id && !allSiteIds[s.id]) {
+          allSiteIds[s.id] = s.webUrl || s.id;
+          console.log('Found site:', s.id, '→', s.webUrl);
         }
       });
-      if (matchCount === needed.length) {
-        console.log('All found at', siteAttempts[i]);
-        setLoading('Φόρτωση δεδομένων...', 55);
-        return;
+    } catch(e) { console.warn('sitePaths['+i+'] err:', e.message); }
+  }
+
+  // 5. On each site, list ALL lists (including hidden)
+  var siteIdList = Object.keys(allSiteIds);
+  console.log('=== Probing', siteIdList.length, 'sites ===');
+
+  for (var j = 0; j < siteIdList.length; j++) {
+    var sid = siteIdList[j];
+    var allListsOnSite = await tryListsAt('/sites/' + sid + '/lists?$select=id,displayName,name&$top=500', 'Site['+j+'] lists');
+
+    var matchCount = 0;
+    allListsOnSite.forEach(function(l) {
+      if (needed.indexOf(l.displayName) >= 0 || needed.indexOf(l.name) >= 0) {
+        var key = needed.indexOf(l.displayName) >= 0 ? l.displayName : l.name;
+        graphListIds[key] = l.id;
+        graphSiteId = sid;
+        matchCount++;
+        console.log('✅ MATCHED:', key, '=', l.id);
       }
-    } catch(e) { console.log('Failed:', siteAttempts[i], e.message); }
+    });
+    if (needed.every(function(n){return !!graphListIds[n];})) {
+      console.log('✅ All lists found at site:', allSiteIds[sid]);
+      setLoading('Φόρτωση δεδομένων...', 55); return;
+    }
+  }
+
+  // 6. Last resort: try known list GUIDs directly on personal site
+  var knownGuids = {
+    'PK_Policies':    '10cec4c0-9461-4463-841f-1c4300a9176d',
+    'PK_ActivityLog': 'cb96c3e0-bb28-4bb3-a9cc-741f09117a7c',
+    'PK_PendingReg':  'e5c11e3c-b6bf-4b8c-8901-0a2598661e71',
+    'PK_SORegistry':  '5c1778eb-c752-44ae-a967-1d977c7013da'
+  };
+  console.log('=== Trying known GUIDs on each site ===');
+  for (var k = 0; k < siteIdList.length; k++) {
+    var sid2 = siteIdList[k];
+    var hits = 0;
+    for (var name in knownGuids) {
+      var lr2 = await tryListsAt('/sites/' + sid2 + '/lists/' + knownGuids[name] + '?$select=id,displayName', 'GUID probe '+name+' on site['+k+']');
+      if (lr2.length > 0 && lr2[0].id) {
+        graphListIds[name] = knownGuids[name];
+        graphSiteId = sid2;
+        hits++;
+        console.log('✅ GUID HIT:', name, 'on', allSiteIds[sid2]);
+      }
+    }
+    if (hits === 4) {
+      console.log('✅ All 4 GUIDs confirmed on site:', allSiteIds[sid2]);
+      setLoading('Φόρτωση δεδομένων...', 55); return;
+    }
   }
 
   var stillMissing = needed.filter(function(n){ return !graphListIds[n]; });
-  if (stillMissing.length > 0) throw new Error('Δεν βρέθηκαν τα lists: ' + stillMissing.join(', '));
-  setLoading('Φόρτωση δεδομένων...', 55);
+  console.error('❌ MISSING LISTS:', stillMissing);
+  throw new Error('Δεν βρέθηκαν τα lists: ' + stillMissing.join(', ') + '. Δες console για πλήρη διαγνωστικά.');
 }
 
 // ════════════════════════════════════════════════════
