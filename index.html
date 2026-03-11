@@ -621,8 +621,22 @@ var MSAL_CONFIG = {
   cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
 };
 var GRAPH_SCOPES = ['https://graph.microsoft.com/Sites.ReadWrite.All','https://graph.microsoft.com/User.Read'];
+var SP_SCOPES = ['https://pkinsurancegr-my.sharepoint.com/AllSites.Write'];
 var msalInstance, currentUser = {name:'', email:''};
 var graphSiteId = null, graphListIds = {};
+var personalSiteUrl = 'https://pkinsurancegr-my.sharepoint.com/personal/kk_pkinsurance_gr';
+
+async function getSPToken() {
+  var acc = msalInstance.getActiveAccount();
+  if (!acc) throw new Error('Not authenticated');
+  try {
+    var resp = await msalInstance.acquireTokenSilent({ scopes: SP_SCOPES, account: acc });
+    return resp.accessToken;
+  } catch(e) {
+    await msalInstance.acquireTokenRedirect({ scopes: GRAPH_SCOPES.concat(SP_SCOPES) });
+    return null;
+  }
+}
 
 function initMSAL() {
   msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
@@ -655,7 +669,8 @@ function initMSAL() {
 function doLogin() {
   var btn = document.getElementById('loginBtn');
   btn.textContent = '⏳ Ανακατεύθυνση...'; btn.disabled = true;
-  msalInstance.loginRedirect({ scopes: GRAPH_SCOPES }).catch(function(e) {
+  // Request both Graph AND SharePoint scopes in one login
+  msalInstance.loginRedirect({ scopes: GRAPH_SCOPES.concat(SP_SCOPES) }).catch(function(e) {
     var err = document.getElementById('loginError');
     err.textContent = 'Αποτυχία: ' + (e.errorMessage || e.message || 'Άγνωστο σφάλμα');
     err.style.display = 'block';
@@ -702,156 +717,102 @@ async function graphCall(method, endpoint, body) {
 }
 
 function listPath(listName) {
-  // Returns the base path for list operations
-  // Uses drives/{driveId}/lists/{listId} if no proper site found, else sites/{siteId}/lists/{listId}
-  if (window._driveId && (!graphSiteId || graphSiteId.startsWith('drives/'))) {
-    return '/drives/' + window._driveId + '/lists/' + graphListIds[listName];
-  }
   return '/sites/' + graphSiteId + '/lists/' + graphListIds[listName];
+}
+
+// ════════════════════════════════════════════════════
+// SHAREPOINT REST API (primary data layer)
+// ════════════════════════════════════════════════════
+async function spCall(method, spPath, body) {
+  var token = await getSPToken();
+  var fetchMethod = (method === 'PATCH' || method === 'DELETE') ? 'POST' : method;
+  var opts = {
+    method: fetchMethod,
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Accept': 'application/json;odata=nometadata'
+    }
+  };
+  if (method === 'POST' || method === 'PATCH' || method === 'DELETE') {
+    opts.headers['Content-Type'] = 'application/json;odata=nometadata';
+  }
+  if (method === 'PATCH') {
+    opts.headers['X-HTTP-Method'] = 'MERGE';
+    opts.headers['IF-MATCH'] = '*';
+  }
+  if (method === 'DELETE') {
+    opts.headers['X-HTTP-Method'] = 'DELETE';
+    opts.headers['IF-MATCH'] = '*';
+  }
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  var resp = await fetch(personalSiteUrl + '/_api/web' + spPath, opts);
+  if (!resp.ok) {
+    var errText = await resp.text();
+    throw new Error('SP ' + method + ' ' + spPath + ': ' + resp.status + ' ' + errText.substring(0, 300));
+  }
+  if (resp.status === 204) return null;
+  var txt = await resp.text();
+  if (!txt) return null;
+  try { return JSON.parse(txt); } catch(e) { return null; }
+}
+
+function spListPath(listName) {
+  return '/lists/getbyid(\'' + graphListIds[listName] + '\')';
+}
+
+function spItemNorm(spItem) {
+  // Normalize SP REST item to Graph-like {id, fields} format
+  return { id: String(spItem.ID || spItem.Id || ''), fields: spItem };
 }
 
 // ════════════════════════════════════════════════════
 // SITE & LIST DISCOVERY
 // ════════════════════════════════════════════════════
 async function discoverSiteAndLists() {
-  setLoading('Σύνδεση με Microsoft Lists...', 30);
+  setLoading('Σύνδεση SharePoint...', 35);
   var needed = ['PK_Policies','PK_ActivityLog','PK_PendingReg','PK_SORegistry'];
-  var token = await getToken();
 
-  // ── DIAGNOSTIC HELPER ──────────────────────────────
-  async function tryListsAt(url, label) {
-    try {
-      var r = await fetch('https://graph.microsoft.com/v1.0' + url, {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      var d = await r.json();
-      if (d.error) { console.warn(label + ' → ERROR:', d.error.code, d.error.message); return []; }
-      var items = d.value || (d.id ? [d] : []);
-      console.log(label + ' (' + items.length + '):', items.map(function(x){
-        return '"' + (x.displayName||x.name||x.id) + '" [' + x.id + ']';
-      }).join(' | '));
-      return items;
-    } catch(e) { console.warn(label + ' → FETCH ERR:', e.message); return []; }
-  }
+  // Use SharePoint REST API directly — Graph API does not return
+  // personal Microsoft Lists created via lists.microsoft.com
+  var spToken = await getSPToken();
+  if (!spToken) return; // redirect happened
 
-  // 1. Beta me/lists (personal lists)
-  try {
-    var br = await fetch('https://graph.microsoft.com/beta/me/lists?$select=id,displayName,parentReference&$top=500', {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    var bd = await br.json();
-    var bl = bd.value || [];
-    console.log('=== BETA me/lists (' + bl.length + ') ===');
-    bl.forEach(function(l){
-      console.log(' •', l.displayName, '| id:', l.id, '| siteId:', (l.parentReference&&l.parentReference.siteId||'?'));
-      if (needed.indexOf(l.displayName) >= 0) {
-        graphListIds[l.displayName] = l.id;
-        if (!graphSiteId && l.parentReference && l.parentReference.siteId)
-          graphSiteId = l.parentReference.siteId;
-      }
-    });
-  } catch(e) { console.warn('beta/me/lists failed:', e.message); }
-
-  if (needed.every(function(n){return !!graphListIds[n];})) {
-    console.log('✅ All found via beta/me/lists, siteId:', graphSiteId);
-    setLoading('Φόρτωση δεδομένων...', 55); return;
-  }
-
-  // 2. Get user's personal site via /me/followedSites and all drives
-  var driveInfo = await graphCall('GET', '/me/drive?$select=webUrl,id');
-  var hostname = new URL(driveInfo.webUrl).hostname; // pkinsurancegr-my.sharepoint.com
-  console.log('=== My OneDrive hostname:', hostname, 'driveId:', driveInfo.id, '===');
-
-  // 3. Get personal site via /me → look for personal site
-  var meInfo = await graphCall('GET', '/me?$select=userPrincipalName,id');
-  console.log('UPN:', meInfo.userPrincipalName, 'userId:', meInfo.id);
-
-  // 4. Try all site path combinations
-  var upn = meInfo.userPrincipalName || '';
-  var userPart = upn.replace('@','_').replace(/\./g,'_').toLowerCase();
-  console.log('userPart:', userPart);
-
-  var sitePaths = [
-    '/me/followedSites?$select=id,webUrl&$top=50',
-    '/sites/' + hostname + ':/personal/' + userPart + ':?$select=id,webUrl',
-    '/sites/' + hostname + '?$select=id,webUrl',
-    '/sites/' + hostname.replace('-my.', '.') + '?$select=id,webUrl',
-    '/users/' + meInfo.id + '/sites/root?$select=id,webUrl'
-  ];
-
-  var allSiteIds = {};
-
-  for (var i = 0; i < sitePaths.length; i++) {
-    try {
-      var sr = await fetch('https://graph.microsoft.com/v1.0' + sitePaths[i], {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      var sd = await sr.json();
-      if (sd.error) { console.warn('Path', sitePaths[i], '→', sd.error.code); continue; }
-      var sites = sd.value || (sd.id ? [sd] : []);
-      sites.forEach(function(s){
-        if (s.id && !allSiteIds[s.id]) {
-          allSiteIds[s.id] = s.webUrl || s.id;
-          console.log('Found site:', s.id, '→', s.webUrl);
-        }
-      });
-    } catch(e) { console.warn('sitePaths['+i+'] err:', e.message); }
-  }
-
-  // 5. On each site, list ALL lists (including hidden)
-  var siteIdList = Object.keys(allSiteIds);
-  console.log('=== Probing', siteIdList.length, 'sites ===');
-
-  for (var j = 0; j < siteIdList.length; j++) {
-    var sid = siteIdList[j];
-    var allListsOnSite = await tryListsAt('/sites/' + sid + '/lists?$select=id,displayName,name&$top=500', 'Site['+j+'] lists');
-
-    var matchCount = 0;
-    allListsOnSite.forEach(function(l) {
-      if (needed.indexOf(l.displayName) >= 0 || needed.indexOf(l.name) >= 0) {
-        var key = needed.indexOf(l.displayName) >= 0 ? l.displayName : l.name;
-        graphListIds[key] = l.id;
-        graphSiteId = sid;
-        matchCount++;
-        console.log('✅ MATCHED:', key, '=', l.id);
-      }
-    });
-    if (needed.every(function(n){return !!graphListIds[n];})) {
-      console.log('✅ All lists found at site:', allSiteIds[sid]);
-      setLoading('Φόρτωση δεδομένων...', 55); return;
+  setLoading('Φόρτωση Lists...', 45);
+  var spResp = await fetch(personalSiteUrl + '/_api/web/lists?$select=Id,Title&$top=500', {
+    headers: {
+      'Authorization': 'Bearer ' + spToken,
+      'Accept': 'application/json;odata=nometadata'
     }
+  });
+
+  if (!spResp.ok) {
+    var errBody = await spResp.text();
+    throw new Error('SP lists ' + spResp.status + ': ' + errBody.substring(0, 200));
   }
 
-  // 6. Last resort: try known list GUIDs directly on personal site
-  var knownGuids = {
-    'PK_Policies':    '10cec4c0-9461-4463-841f-1c4300a9176d',
-    'PK_ActivityLog': 'cb96c3e0-bb28-4bb3-a9cc-741f09117a7c',
-    'PK_PendingReg':  'e5c11e3c-b6bf-4b8c-8901-0a2598661e71',
-    'PK_SORegistry':  '5c1778eb-c752-44ae-a967-1d977c7013da'
-  };
-  console.log('=== Trying known GUIDs on each site ===');
-  for (var k = 0; k < siteIdList.length; k++) {
-    var sid2 = siteIdList[k];
-    var hits = 0;
-    for (var name in knownGuids) {
-      var lr2 = await tryListsAt('/sites/' + sid2 + '/lists/' + knownGuids[name] + '?$select=id,displayName', 'GUID probe '+name+' on site['+k+']');
-      if (lr2.length > 0 && lr2[0].id) {
-        graphListIds[name] = knownGuids[name];
-        graphSiteId = sid2;
-        hits++;
-        console.log('✅ GUID HIT:', name, 'on', allSiteIds[sid2]);
-      }
+  var spData = await spResp.json();
+  var spLists = spData.value || [];
+  console.log('SP REST lists (' + spLists.length + '):', spLists.map(function(l){
+    return '"' + l.Title + '" [' + l.Id + ']';
+  }).join(' | '));
+
+  spLists.forEach(function(l) {
+    if (needed.indexOf(l.Title) >= 0) {
+      graphListIds[l.Title] = (l.Id || '').replace(/[{}]/g, '').toLowerCase();
+      console.log('\u2705 Found:', l.Title, '=', graphListIds[l.Title]);
     }
-    if (hits === 4) {
-      console.log('✅ All 4 GUIDs confirmed on site:', allSiteIds[sid2]);
-      setLoading('Φόρτωση δεδομένων...', 55); return;
-    }
+  });
+
+  var missing = needed.filter(function(n){ return !graphListIds[n]; });
+  if (missing.length > 0) {
+    throw new Error('Δεν βρέθηκαν τα lists: ' + missing.join(', ') + ' — SP επέστρεψε ' + spLists.length + ' lists. Έλεγξε ότι τα lists υπάρχουν στο ' + personalSiteUrl);
   }
 
-  var stillMissing = needed.filter(function(n){ return !graphListIds[n]; });
-  console.error('❌ MISSING LISTS:', stillMissing);
-  throw new Error('Δεν βρέθηκαν τα lists: ' + stillMissing.join(', ') + '. Δες console για πλήρη διαγνωστικά.');
+  graphSiteId = 'pkinsurancegr-my.sharepoint.com,9db860bc-daed-43fa-8331-cb705c58b4d8,768afa37-60fc-49fc-9df1-a38119031395';
+  console.log('\u2705 All 4 lists found via SP REST!');
+  setLoading('Φόρτωση δεδομένων...', 55);
 }
+
 
 // ════════════════════════════════════════════════════
 // DATE HELPERS
@@ -966,23 +927,24 @@ function soItemToSO(item) {
 }
 
 // ════════════════════════════════════════════════════
-// FETCH ALL DATA FROM GRAPH
+// ════════════════════════════════════════════════════
+// FETCH ALL DATA — uses SharePoint REST API
 // ════════════════════════════════════════════════════
 async function fetchAllData() {
   try {
     await discoverSiteAndLists();
-    setLoading('Φόρτωση Συμβολαίων...', 40);
-    var polResp = await graphCall('GET', listPath('PK_Policies') + '/items?$expand=fields&$top=5000');
-    records = (polResp.value || []).map(itemToRecord);
-    setLoading('Φόρτωση Activity Log...', 60);
-    var logResp = await graphCall('GET', listPath('PK_ActivityLog') + '/items?$expand=fields&$top=5000&$orderby=fields/Timestamp desc');
-    actLog = (logResp.value || []).map(logItemToLog);
-    setLoading('Φόρτωση Εκκρεμών...', 75);
-    var pendResp = await graphCall('GET', listPath('PK_PendingReg') + '/items?$expand=fields&$top=2000');
-    pendRegs = (pendResp.value || []).map(pendItemToPend);
-    setLoading('Φόρτωση Πάγιων Εντολών...', 88);
-    var soResp = await graphCall('GET', listPath('PK_SORegistry') + '/items?$expand=fields&$top=2000');
-    soRegistry = (soResp.value || []).map(soItemToSO);
+    setLoading('Φόρτωση Συμβολαίων...', 60);
+    var polResp = await spCall('GET', spListPath('PK_Policies') + '/items?$top=5000');
+    records = (polResp.value || []).map(function(i){ return itemToRecord(spItemNorm(i)); });
+    setLoading('Φόρτωση Activity Log...', 72);
+    var logResp = await spCall('GET', spListPath('PK_ActivityLog') + '/items?$top=5000&$orderby=ID desc');
+    actLog = (logResp.value || []).map(function(i){ return logItemToLog(spItemNorm(i)); });
+    setLoading('Φόρτωση Εκκρεμών...', 82);
+    var pendResp = await spCall('GET', spListPath('PK_PendingReg') + '/items?$top=2000');
+    pendRegs = (pendResp.value || []).map(function(i){ return pendItemToPend(spItemNorm(i)); });
+    setLoading('Φόρτωση Πάγιων Εντολών...', 92);
+    var soResp = await spCall('GET', spListPath('PK_SORegistry') + '/items?$top=2000');
+    soRegistry = (soResp.value || []).map(function(i){ return soItemToSO(spItemNorm(i)); });
     setLoading('Έτοιμο!', 100);
     setTimeout(function() {
       document.getElementById('loadingOverlay').style.display = 'none';
@@ -990,90 +952,79 @@ async function fetchAllData() {
     }, 400);
   } catch(e) {
     document.getElementById('loadingOverlay').style.display = 'none';
-    showToast('⚠️ Σφάλμα φόρτωσης: ' + e.message, '#b91c1c');
+    showToast('\u26a0\ufe0f Σφάλμα φόρτωσης: ' + e.message, '#b91c1c');
     console.error('fetchAllData error:', e);
     renderQueue(); renderLog(); renderPend(); renderKPI(); updateBadges();
   }
 }
 
-function setLoading(msg, pct) {
-  var ov = document.getElementById('loadingOverlay');
-  ov.style.display = 'flex';
-  var msgEl = document.getElementById('loadingMsg'); if(msgEl) msgEl.textContent = msg;
-  var bar = document.getElementById('loadBar'); if(bar) bar.style.width = pct + '%';
-}
-
 // ════════════════════════════════════════════════════
-// GRAPH WRITE OPERATIONS (fire-and-forget with error toast)
+// SP WRITE OPERATIONS (fire-and-forget with error toast)
 // ════════════════════════════════════════════════════
 async function graphPatchPolicy(r, fields) {
-  if (!graphSiteId || !graphListIds['PK_Policies'] || !r.graphId) return;
+  if (!graphListIds['PK_Policies'] || !r.graphId) return;
   try {
-    await graphCall('PATCH', listPath('PK_Policies') + '/items/' + r.graphId + '/fields', fields);
-  } catch(e) { showToast('⚠️ Sync error (Policies): ' + e.message.substring(0,60), '#b45309'); console.error(e); }
+    await spCall('PATCH', spListPath('PK_Policies') + '/items(' + r.graphId + ')', fields);
+  } catch(e) { showToast('\u26a0\ufe0f Sync error (Policies): ' + e.message.substring(0,60), '#b45309'); console.error(e); }
 }
 async function graphCreateLog(entry) {
-  if (!graphSiteId || !graphListIds['PK_ActivityLog']) return;
+  if (!graphListIds['PK_ActivityLog']) return;
   try {
-    await graphCall('POST', listPath('PK_ActivityLog') + '/items', {
-      fields: {
-        Title: entry.client || '',
-        Policy: entry.policy || '',
-        Action_Type: entry.type || '',
-        Detail: entry.detail || '',
-        Amount: entry.amt || '',
-        User: entry.user || currentUser.email || 'KK',
-        Timestamp: entry.time || nowStr(),
-        Is_Closing: entry.needsMech || false,
-        Parent: entry.parent || ''
-      }
+    await spCall('POST', spListPath('PK_ActivityLog') + '/items', {
+      Title: entry.client || '',
+      Policy: entry.policy || '',
+      Action_Type: entry.type || '',
+      Detail: entry.detail || '',
+      Amount: entry.amt || '',
+      User: entry.user || currentUser.email || 'KK',
+      Timestamp: entry.time || nowStr(),
+      Is_Closing: entry.needsMech || false,
+      Parent: entry.parent || ''
     });
-  } catch(e) { showToast('⚠️ Sync error (Log): ' + e.message.substring(0,60), '#b45309'); console.error(e); }
+  } catch(e) { showToast('\u26a0\ufe0f Sync error (Log): ' + e.message.substring(0,60), '#b45309'); console.error(e); }
 }
 async function graphCreatePend(entry) {
-  if (!graphSiteId || !graphListIds['PK_PendingReg']) return;
+  if (!graphListIds['PK_PendingReg']) return;
   try {
-    await graphCall('POST', listPath('PK_PendingReg') + '/items', {
-      fields: {
-        Title: entry.client || '',
-        Policy: entry.policy || '',
-        Message: entry.what || '',
-        Done: false,
-        User: currentUser.email || 'KK',
-        Email: entry.email || '',
-        Phone: entry.phone || ''
-      }
+    await spCall('POST', spListPath('PK_PendingReg') + '/items', {
+      Title: entry.client || '',
+      Policy: entry.policy || '',
+      Message: entry.what || '',
+      Done: false,
+      User: currentUser.email || 'KK',
+      Email: entry.email || '',
+      Phone: entry.phone || ''
     });
-  } catch(e) { showToast('⚠️ Sync error (Pending): ' + e.message.substring(0,60), '#b45309'); console.error(e); }
+  } catch(e) { showToast('\u26a0\ufe0f Sync error (Pending): ' + e.message.substring(0,60), '#b45309'); console.error(e); }
 }
 async function graphPatchPend(uid, fields) {
-  if (!graphSiteId || !graphListIds['PK_PendingReg'] || !uid) return;
+  if (!graphListIds['PK_PendingReg'] || !uid) return;
   try {
-    await graphCall('PATCH', listPath('PK_PendingReg') + '/items/' + uid + '/fields', fields);
-  } catch(e) { showToast('⚠️ Sync error (Pending update): ' + e.message.substring(0,60), '#b45309'); }
+    await spCall('PATCH', spListPath('PK_PendingReg') + '/items(' + uid + ')', fields);
+  } catch(e) { showToast('\u26a0\ufe0f Sync error (Pending update): ' + e.message.substring(0,60), '#b45309'); }
 }
 async function graphCreatePolicy(r) {
-  if (!graphSiteId || !graphListIds['PK_Policies']) return null;
+  if (!graphListIds['PK_Policies']) return null;
   try {
-    var resp = await graphCall('POST', listPath('PK_Policies') + '/items', {
-      fields: {
-        Title: r.client || '',
-        Insurer: r.insurer || '', Branch: r.branch || '', Policy: r.policy || '',
-        Plate: r.plate || '', Parent: r.parent || '', Email: r.email || '',
-        Phone: r.phone || '', KIP: r.kip || '', Note: r.note || '',
-        Expiry: r.expiry ? displayToISO(r.expiry) : null,
-        Month: r.month || currentMonth,
-        Premium: r.premNum || 0,
-        Payment_Status: r.payment || 'UNPAID',
-        Sent: r.sent === 'YES',
-        Is_Proposal: r.isProposal || false,
-        Last_Action: r.last || '—',
-        Source: r.source || ''
-      }
+    var resp = await spCall('POST', spListPath('PK_Policies') + '/items', {
+      Title: r.client || '',
+      Insurer: r.insurer || '', Branch: r.branch || '', Policy: r.policy || '',
+      Plate: r.plate || '', Parent: r.parent || '', Email: r.email || '',
+      Phone: r.phone || '', KIP: r.kip || '', Note: r.note || '',
+      Expiry: r.expiry ? displayToISO(r.expiry) : null,
+      Month: r.month || currentMonth,
+      Premium: r.premNum || 0,
+      Payment_Status: r.payment || 'UNPAID',
+      Sent: r.sent === 'YES',
+      Is_Proposal: r.isProposal || false,
+      Last_Action: r.last || '\u2014',
+      Source: r.source || ''
     });
-    return resp;
-  } catch(e) { showToast('⚠️ Sync error (create): ' + e.message.substring(0,60), '#b45309'); return null; }
+    // SP REST returns the created item directly (not wrapped in {fields:...})
+    return resp ? spItemNorm(resp) : null;
+  } catch(e) { showToast('\u26a0\ufe0f Sync error (create): ' + e.message.substring(0,60), '#b45309'); return null; }
 }
+
 
 // ════════════════════════════════════════════════════
 // STORAGE (now delegates to Graph)
