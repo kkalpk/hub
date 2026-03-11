@@ -701,22 +701,88 @@ async function graphCall(method, endpoint, body) {
   return resp.json();
 }
 
+function listPath(listName) {
+  // Returns the base path for list operations
+  // Uses drives/{driveId}/lists/{listId} if no proper site found, else sites/{siteId}/lists/{listId}
+  if (window._driveId && (!graphSiteId || graphSiteId.startsWith('drives/'))) {
+    return '/drives/' + window._driveId + '/lists/' + graphListIds[listName];
+  }
+  return '/sites/' + graphSiteId + '/lists/' + graphListIds[listName];
+}
+
 // ════════════════════════════════════════════════════
 // SITE & LIST DISCOVERY
 // ════════════════════════════════════════════════════
 async function discoverSiteAndLists() {
-  setLoading('Σύνδεση με Microsoft Lists...', 50);
+  setLoading('Σύνδεση με Microsoft Lists...', 30);
 
-  // Hardcoded site ID (from console log earlier)
-  graphSiteId = 'pkinsurancegr-my.sharepoint.com,9db860bc-daed-43fa-8331-cb705c58b4d8,768afa37-60fc-49fc-9df1-a38119031395';
+  var needed = ['PK_Policies','PK_ActivityLog','PK_PendingReg','PK_SORegistry'];
 
-  // Hardcoded list GUIDs (from lists.microsoft.com URLs)
-  graphListIds['PK_Policies']    = '10cec4c0-9461-4463-841f-1c4300a9176d';
-  graphListIds['PK_ActivityLog'] = 'cb96c3e0-bb28-4bb3-a9cc-741f09117a7c';
-  graphListIds['PK_PendingReg']  = 'e5c11e3c-b6bf-4b8c-8901-0a2598661e71';
-  graphListIds['PK_SORegistry']  = '5c1778eb-c752-44ae-a967-1d977c7013da';
+  setLoading('Φόρτωση Lists...', 45);
 
-  console.log('Site and lists hardcoded. Ready.');
+  // Use Beta API to get personal lists directly
+  var token = await getToken();
+  var betaResp = await fetch('https://graph.microsoft.com/beta/me/lists?$select=id,displayName,parentReference&$top=100', {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  var betaData = await betaResp.json();
+  var betaLists = betaData.value || [];
+  console.log('Beta me/lists:', betaLists.map(function(l){
+    return l.displayName + ' | site:' + (l.parentReference&&l.parentReference.siteId||'?');
+  }));
+
+  betaLists.forEach(function(l) {
+    if (needed.indexOf(l.displayName) >= 0) {
+      graphListIds[l.displayName] = l.id;
+      if (!graphSiteId && l.parentReference && l.parentReference.siteId) {
+        graphSiteId = l.parentReference.siteId;
+      }
+    }
+  });
+
+  var found = needed.filter(function(n){ return !!graphListIds[n]; });
+  if (found.length === needed.length) {
+    console.log('All lists found via beta! SiteId:', graphSiteId);
+    setLoading('Φόρτωση δεδομένων...', 55);
+    return;
+  }
+
+  // Fallback: search known sites
+  console.log('Beta found ' + found.length + '/' + needed.length + ', trying fallback...');
+  var driveInfo = await graphCall('GET', '/me/drive?$select=webUrl');
+  var hostname = new URL(driveInfo.webUrl).hostname;
+
+  var siteAttempts = [
+    hostname + ':/personal/kk_pkinsurance_gr',
+    hostname,
+    hostname.replace('-my.','.')
+  ];
+
+  for (var i = 0; i < siteAttempts.length; i++) {
+    try {
+      var s = await graphCall('GET', '/sites/' + siteAttempts[i] + '?$select=id');
+      var sid = s.id;
+      var lr = await graphCall('GET', '/sites/' + sid + '/lists?$select=id,displayName&$top=200');
+      var llist = lr.value || [];
+      console.log('Site', siteAttempts[i], 'lists:', llist.map(function(x){return x.displayName;}));
+      var matchCount = 0;
+      llist.forEach(function(l) {
+        if (needed.indexOf(l.displayName) >= 0) {
+          graphListIds[l.displayName] = l.id;
+          graphSiteId = sid;
+          matchCount++;
+        }
+      });
+      if (matchCount === needed.length) {
+        console.log('All found at', siteAttempts[i]);
+        setLoading('Φόρτωση δεδομένων...', 55);
+        return;
+      }
+    } catch(e) { console.log('Failed:', siteAttempts[i], e.message); }
+  }
+
+  var stillMissing = needed.filter(function(n){ return !graphListIds[n]; });
+  if (stillMissing.length > 0) throw new Error('Δεν βρέθηκαν τα lists: ' + stillMissing.join(', '));
   setLoading('Φόρτωση δεδομένων...', 55);
 }
 
@@ -839,16 +905,16 @@ async function fetchAllData() {
   try {
     await discoverSiteAndLists();
     setLoading('Φόρτωση Συμβολαίων...', 40);
-    var polResp = await graphCall('GET', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_Policies'] + '/items?$expand=fields&$top=5000');
+    var polResp = await graphCall('GET', listPath('PK_Policies') + '/items?$expand=fields&$top=5000');
     records = (polResp.value || []).map(itemToRecord);
     setLoading('Φόρτωση Activity Log...', 60);
-    var logResp = await graphCall('GET', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_ActivityLog'] + '/items?$expand=fields&$top=5000&$orderby=fields/Timestamp desc');
+    var logResp = await graphCall('GET', listPath('PK_ActivityLog') + '/items?$expand=fields&$top=5000&$orderby=fields/Timestamp desc');
     actLog = (logResp.value || []).map(logItemToLog);
     setLoading('Φόρτωση Εκκρεμών...', 75);
-    var pendResp = await graphCall('GET', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_PendingReg'] + '/items?$expand=fields&$top=2000');
+    var pendResp = await graphCall('GET', listPath('PK_PendingReg') + '/items?$expand=fields&$top=2000');
     pendRegs = (pendResp.value || []).map(pendItemToPend);
     setLoading('Φόρτωση Πάγιων Εντολών...', 88);
-    var soResp = await graphCall('GET', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_SORegistry'] + '/items?$expand=fields&$top=2000');
+    var soResp = await graphCall('GET', listPath('PK_SORegistry') + '/items?$expand=fields&$top=2000');
     soRegistry = (soResp.value || []).map(soItemToSO);
     setLoading('Έτοιμο!', 100);
     setTimeout(function() {
@@ -876,13 +942,13 @@ function setLoading(msg, pct) {
 async function graphPatchPolicy(r, fields) {
   if (!graphSiteId || !graphListIds['PK_Policies'] || !r.graphId) return;
   try {
-    await graphCall('PATCH', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_Policies'] + '/items/' + r.graphId + '/fields', fields);
+    await graphCall('PATCH', listPath('PK_Policies') + '/items/' + r.graphId + '/fields', fields);
   } catch(e) { showToast('⚠️ Sync error (Policies): ' + e.message.substring(0,60), '#b45309'); console.error(e); }
 }
 async function graphCreateLog(entry) {
   if (!graphSiteId || !graphListIds['PK_ActivityLog']) return;
   try {
-    await graphCall('POST', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_ActivityLog'] + '/items', {
+    await graphCall('POST', listPath('PK_ActivityLog') + '/items', {
       fields: {
         Title: entry.client || '',
         Policy: entry.policy || '',
@@ -900,7 +966,7 @@ async function graphCreateLog(entry) {
 async function graphCreatePend(entry) {
   if (!graphSiteId || !graphListIds['PK_PendingReg']) return;
   try {
-    await graphCall('POST', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_PendingReg'] + '/items', {
+    await graphCall('POST', listPath('PK_PendingReg') + '/items', {
       fields: {
         Title: entry.client || '',
         Policy: entry.policy || '',
@@ -916,13 +982,13 @@ async function graphCreatePend(entry) {
 async function graphPatchPend(uid, fields) {
   if (!graphSiteId || !graphListIds['PK_PendingReg'] || !uid) return;
   try {
-    await graphCall('PATCH', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_PendingReg'] + '/items/' + uid + '/fields', fields);
+    await graphCall('PATCH', listPath('PK_PendingReg') + '/items/' + uid + '/fields', fields);
   } catch(e) { showToast('⚠️ Sync error (Pending update): ' + e.message.substring(0,60), '#b45309'); }
 }
 async function graphCreatePolicy(r) {
   if (!graphSiteId || !graphListIds['PK_Policies']) return null;
   try {
-    var resp = await graphCall('POST', '/sites/' + graphSiteId + '/lists/' + graphListIds['PK_Policies'] + '/items', {
+    var resp = await graphCall('POST', listPath('PK_Policies') + '/items', {
       fields: {
         Title: r.client || '',
         Insurer: r.insurer || '', Branch: r.branch || '', Policy: r.policy || '',
