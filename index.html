@@ -807,6 +807,13 @@ async function ensureList(listName) {
   console.log('✅ Columns created for:', listName);
 }
 
+function setLoading(msg, pct) {
+  var ov = document.getElementById('loadingOverlay');
+  if (ov) ov.style.display = 'flex';
+  var msgEl = document.getElementById('loadingMsg'); if(msgEl) msgEl.textContent = msg;
+  var bar = document.getElementById('loadBar'); if(bar) bar.style.width = pct + '%';
+}
+
 async function discoverSiteAndLists() {
   setLoading('Σύνδεση με Microsoft Lists...', 30);
   graphSiteId = PERSONAL_SITE_ID;
