@@ -427,8 +427,8 @@ mono{font-family:'IBM Plex Mono',monospace;}
   <div class="tabs" id="mainTabs">
     <div class="tab active" id="tab-queue" onclick="switchTab('queue')">&#9889; TODAY QUEUE <span class="tbadge red" id="tb-q">—</span></div>
     <div class="tab" id="tab-monthly" onclick="switchTab('monthly')">&#128197; Μηνιαία Εικόνα <span class="tbadge blue" id="tb-m">—</span></div>
-    <div class="tab" id="tab-so" onclick="switchTab('so')">&#128309; Πάγιες <span class="tbadge teal" id="tb-so">4</span></div>
-    <div class="tab" id="tab-raw" onclick="switchTab('raw')">&#128229; RAW <span class="tbadge pur" id="tb-raw">5</span></div>
+    <div class="tab" id="tab-so" onclick="switchTab('so')">&#128309; Πάγιες <span class="tbadge teal" id="tb-so"></span></div>
+    <div class="tab" id="tab-raw" onclick="switchTab('raw')">&#128229; RAW <span class="tbadge pur" id="tb-raw"></span></div>
     <div class="tab" id="tab-log" onclick="switchTab('log')">&#128203; Activity Log <span class="tbadge blue" id="tb-log">0</span></div>
     <div class="tab" id="tab-pend" onclick="switchTab('pend')">&#9888; Εκκρ. Μηχ/φηση <span class="tbadge org" id="tb-pend">0</span></div>
     <div class="tab" id="tab-kpi" onclick="switchTab('kpi')">&#128200; KPIs</div>
@@ -1102,8 +1102,13 @@ function updateBadges(){
   var done=Object.keys(closedIds).length;
   document.getElementById('tb-archive').textContent=done||'—';
   var total=records.length;
-  document.getElementById('progTxt').textContent=done+'/'+total;
-  document.getElementById('progFill').style.width=Math.round(done/total*100)+'%';
+  if(total>0){document.getElementById('progTxt').textContent=done+'/'+total;document.getElementById('progFill').style.width=Math.round(done/total*100)+'%';}
+  // RAW badge
+  var rawEl=document.getElementById('tb-raw');
+  if(rawEl) rawEl.textContent=rawData.length;
+  // Πάγιες badge
+  var soEl=document.getElementById('tb-so');
+  if(soEl) soEl.textContent=soRegistry.length>0?soRegistry.length:'';
 }
 
 // ════════════════════════════════════════════════════
@@ -1113,19 +1118,24 @@ function doSearch(q){
   var box=document.getElementById('sRes');
   if(!q||q.length<2){box.style.display='none';return;}
   var qL=q.toLowerCase();
-  var fields=['client','policy','plate','branch','insurer','email','phone','code','parent','note'];
-  var res=records.filter(function(r){return fields.some(function(f){return r[f]&&r[f].toLowerCase().indexOf(qL)>=0;});});
+  var fields=['client','policy','plate','branch','insurer','email','phone','code','parent','note','address'];
+  // Search in both promoted records AND raw (pending) data
+  var allData=records.concat(rawData.map(function(r){return Object.assign({},r,{_isRaw:true});}));
+  var res=allData.filter(function(r){return fields.some(function(f){return r[f]&&String(r[f]).toLowerCase().indexOf(qL)>=0;});});
   if(!res.length){box.style.display='none';return;}
-  var mf=function(r){var m={client:'Όνομα',policy:'Συμβόλαιο',plate:'Πινακίδα',branch:'Κλάδος',insurer:'Ασφαλιστική',email:'Email',phone:'Τηλ.',code:'ΚΗΠ',parent:'Γονική',note:'Σχόλιο'};for(var k in m){if(r[k]&&r[k].toLowerCase().indexOf(qL)>=0)return m[k];}return '';};
+  var mf=function(r){var m={client:'Όνομα',policy:'Συμβόλαιο',plate:'Πινακίδα',address:'Διεύθυνση',branch:'Κλάδος',insurer:'Ασφαλιστική',email:'Email',phone:'Τηλ.',code:'ΚΗΠ',parent:'Γονική',note:'Σχόλιο'};for(var k in m){if(r[k]&&String(r[k]).toLowerCase().indexOf(qL)>=0)return m[k];}return '';};
   var html='';
-  res.slice(0,6).forEach(function(r){
+  res.slice(0,8).forEach(function(r){
     var pc=r.payment==='PAID'?'paid':r.payment==='PAID_PENDING'?'pendg':'unpaid';
+    var rawTag=r._isRaw?'<span class="sd-tag" style="background:#f5f3ff;color:#6d28d9">RAW</span>':'';
     var pi=r.parent&&r.parent!==r.client?'<span class="sd-tag" style="background:#f0fdf4;color:#166534">&#128106; '+r.parent+'</span>':'';
-    html+='<div class="sd-item" onclick="jumpTo('+r.id+')">';
-    html+='<div style="flex:1"><div class="sd-name">'+r.client+' <span class="sd-tag">'+mf(r)+'</span>'+pi+'</div>';
+    var clickFn=r._isRaw?'switchTab(\'raw\')':'jumpTo('+r.id+')';
+    html+='<div class="sd-item" onclick="'+clickFn+';hideSearch()">';
+    html+='<div style="flex:1"><div class="sd-name">'+r.client+' <span class="sd-tag">'+mf(r)+'</span>'+rawTag+pi+'</div>';
     html+='<div class="sd-meta">'+r.insurer+' · '+r.branch+' · Λήξη '+r.expiry+(r.note?' · 💬':'')+'</div></div>';
     html+='<span class="bdg '+pc+'">'+(r.payment==='PAID'?'✓ PAID':r.payment==='PAID_PENDING'?'⏳':'✗')+'</span></div>';
   });
+  if(res.length>8) html+='<div style="padding:6px 12px;color:#64748b;font-size:11px">+' + (res.length-8) + ' ακόμα αποτελέσματα — εξειδίκευσε την αναζήτηση</div>';
   box.innerHTML=html;box.style.display='block';
 }
 function hideSearch(){document.getElementById('sRes').style.display='none';}
@@ -1921,7 +1931,28 @@ function importIView(input) {
         if (!client) continue;
 
         var insurer = cInsurer >= 0 ? (row[cInsurer]||'').toString().replace(/^_/,'').trim() : '';
-        var branch  = cBranch  >= 0 ? (row[cBranch]||'').toString().trim() : '';
+        var branchRaw = cBranch >= 0 ? (row[cBranch]||'').toString().trim() : '';
+
+        // Normalize branch — map all-caps variants to canonical form
+        var BRANCH_MAP = {
+          'ΑΥΤΟΚΙΝΗΤΩΝ': 'Αυτοκινήτου',
+          'ΑΥΤΟΚΙΝΗΤΟΥ': 'Αυτοκινήτου',
+          'ΟΜΑΔΙΚΕΣ': 'Ομαδικών Ασφαλίσεων',
+          'ΟΜΑΔΙΚΩΝ ΑΣΦΑΛΙΣΕΩΝ': 'Ομαδικών Ασφαλίσεων',
+          'ΠΥΡΟΣ': 'Πυρός',
+          'ΖΩΗΣ': 'Ζωής',
+          'ΓΕΝΙΚΗ ΑΣΤΙΚΗ &': 'Αστικής Ευθύνης',
+          'ΓΕΝΙΚΗ ΑΣΤΙΚΗ': 'Αστικής Ευθύνης',
+          'ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ': 'Αστικής Ευθύνης',
+          'ΟΔΙΚΗΣ ΒΟΗΘΕΙΑΣ': 'Οδικής Βοήθειας',
+          'ΓΕΝΙΚΩΝ ΑΤΥΧΗΜΑΤΩΝ': 'Γενικών Ατυχημάτων',
+          'ΠΡΟΣΩΠΙΚΩΝ ΑΤΥΧΗΜΑΤΩΝ': 'Προσωπικών Ατυχημάτων',
+          'ΘΑΛΑΣΣΙΩΝ': 'Θαλασσίων',
+          'ΝΟΜΙΚΗΣ ΠΡΟΣΤΑΣΙΑΣ': 'Νομικής Προστασίας',
+          'ΠΕΡΙΟΥΣΙΑΣ': 'Πυρός'
+        };
+        var branch = BRANCH_MAP[branchRaw.toUpperCase()] || branchRaw;
+
         var policy  = cPolicy  >= 0 ? (row[cPolicy]||'').toString().trim() : '';
         var plate   = cPlate   >= 0 ? (row[cPlate]||'').toString().trim() : '';
         var phone   = cPhone   >= 0 ? (row[cPhone]||'').toString().trim() : '';
@@ -1954,11 +1985,13 @@ function importIView(input) {
         var status = isDup ? 'dup' : 'new';
         if (isDup) dupes++;
 
+        var isMotor = branch==='Αυτοκινήτου'||branch==='Οδικής Βοήθειας';
+        var isFire  = branch==='Πυρός';
         newRaw.push({
           id: Date.now() + i,
           client: client, insurer: insurer, branch: branch, policy: policy,
-          plate: branch==='Αυτοκινήτου'||branch==='Οδικής Βοήθειας' ? plate : '',
-          address: branch==='Πυρός' ? plate : '',
+          plate: isMotor ? plate : '',
+          address: isFire ? plate : '',
           premium: premStr, premNum: premNum,
           expiry: expiry, month: month,
           phone: phone, email: '', parent: client, kip: '', note: '',
@@ -1969,7 +2002,8 @@ function importIView(input) {
       }
 
       // Merge with existing rawData (avoid re-import dupes)
-      var existingPolicies = rawData.map(function(r){return r.policy;}).filter(Boolean);
+      var existingPolicies = rawData.map(function(r){return r.policy;}).filter(Boolean)
+        .concat(records.map(function(r){return r.policy;}).filter(Boolean));
       newRaw = newRaw.filter(function(r){
         return !r.policy || existingPolicies.indexOf(r.policy) < 0;
       });
