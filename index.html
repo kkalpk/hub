@@ -1119,7 +1119,6 @@ function doSearch(q){
   if(!q||q.length<2){box.style.display='none';return;}
   var qL=q.toLowerCase();
   var fields=['client','policy','plate','branch','insurer','email','phone','code','parent','note','address'];
-  // Search in both promoted records AND raw (pending) data
   var allData=records.concat(rawData.map(function(r){return Object.assign({},r,{_isRaw:true});}));
   var res=allData.filter(function(r){return fields.some(function(f){return r[f]&&String(r[f]).toLowerCase().indexOf(qL)>=0;});});
   if(!res.length){box.style.display='none';return;}
@@ -1129,18 +1128,45 @@ function doSearch(q){
     var pc=r.payment==='PAID'?'paid':r.payment==='PAID_PENDING'?'pendg':'unpaid';
     var rawTag=r._isRaw?'<span class="sd-tag" style="background:#f5f3ff;color:#6d28d9">RAW</span>':'';
     var pi=r.parent&&r.parent!==r.client?'<span class="sd-tag" style="background:#f0fdf4;color:#166534">&#128106; '+r.parent+'</span>':'';
-    var clickFn=r._isRaw?'switchTab(\'raw\')':'jumpTo('+r.id+')';
+    var polTag=r.policy?'<span class="sd-tag" style="background:#f1f5f9;color:#475569">'+r.policy+'</span>':'';
+    var clickFn=r._isRaw?'jumpToRaw(\''+r.id+'\')':'jumpTo('+r.id+')';
     html+='<div class="sd-item" onclick="'+clickFn+';hideSearch()">';
-    html+='<div style="flex:1"><div class="sd-name">'+r.client+' <span class="sd-tag">'+mf(r)+'</span>'+rawTag+pi+'</div>';
+    html+='<div style="flex:1"><div class="sd-name">'+r.client+' '+polTag+rawTag+pi+'<span class="sd-tag">'+mf(r)+'</span></div>';
     html+='<div class="sd-meta">'+r.insurer+' · '+r.branch+' · Λήξη '+r.expiry+(r.note?' · 💬':'')+'</div></div>';
     html+='<span class="bdg '+pc+'">'+(r.payment==='PAID'?'✓ PAID':r.payment==='PAID_PENDING'?'⏳':'✗')+'</span></div>';
   });
-  if(res.length>8) html+='<div style="padding:6px 12px;color:#64748b;font-size:11px">+' + (res.length-8) + ' ακόμα αποτελέσματα — εξειδίκευσε την αναζήτηση</div>';
+  if(res.length>8) html+='<div style="padding:6px 12px;color:#64748b;font-size:11px">+' + (res.length-8) + ' ακόμα — εξειδίκευσε την αναζήτηση</div>';
   box.innerHTML=html;box.style.display='block';
 }
 function hideSearch(){document.getElementById('sRes').style.display='none';}
-function jumpTo(id){hideSearch();document.getElementById('sInput').value='';switchTab('queue');setTimeout(function(){var el=document.getElementById('card-'+id);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('hl');setTimeout(function(){el.classList.remove('hl');},2000);}},150);}
-function jumpToMonthly(id){switchTab('monthly');setTimeout(function(){var el=document.getElementById('mcard-'+id);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('hl');setTimeout(function(){el.classList.remove('hl');},2500);}var ned=document.getElementById('ned-'+id);if(ned)ned.classList.add('open');},200);}
+function jumpTo(id){
+  hideSearch();document.getElementById('sInput').value='';
+  // Try queue first, then monthly
+  switchTab('queue');
+  setTimeout(function(){
+    var el=document.getElementById('card-'+id);
+    if(el){
+      el.scrollIntoView({behavior:'smooth',block:'center'});
+      el.classList.add('hl');setTimeout(function(){el.classList.remove('hl');},2000);
+    } else {
+      // Not in queue — go to monthly view
+      switchTab('monthly');
+      setTimeout(function(){
+        var mel=document.getElementById('mcard-'+id);
+        if(mel){mel.scrollIntoView({behavior:'smooth',block:'center'});mel.classList.add('hl');setTimeout(function(){mel.classList.remove('hl');},2500);}
+        var ned=document.getElementById('ned-'+id);if(ned)ned.classList.add('open');
+      },200);
+    }
+  },200);
+}
+function jumpToRaw(id){
+  hideSearch();document.getElementById('sInput').value='';
+  switchTab('raw');
+  setTimeout(function(){
+    var el=document.getElementById('raw-'+id);
+    if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.style.outline='2px solid #7c3aed';setTimeout(function(){el.style.outline='';},2000);}
+  },200);
+}
 
 // ════════════════════════════════════════════════════
 // QUEUE BUCKETS
@@ -1809,7 +1835,7 @@ function renderRaw(){
   body.innerHTML=rawData.map(function(r,i){
     var src=srcL[r.source]||srcL['mn'];
     var propBadge=r.isProposal?'<span class="pill prop" style="margin-left:4px">&#9888; ΠΡΟΤΑΣΗ</span>':'';
-    return '<div class="raw-row'+(r.status==='new'?' nw':'')+(r.isProposal?' prop':'')+'">'+
+    return '<div class="raw-row'+(r.status==='new'?' nw':'')+(r.isProposal?' prop':'')+'" id="raw-'+r.id+'">'+
       '<div style="padding:0 8px;font-size:10px;color:var(--text3)">'+(i+1)+'</div>'+
       '<div style="padding:0 8px;font-size:11px;font-weight:600">'+r.client+propBadge+'</div>'+
       '<div style="padding:0 8px;font-size:10px">'+r.insurer+'<br><span style="color:var(--text3)">'+r.branch+'</span></div>'+
@@ -1980,8 +2006,11 @@ function importIView(input) {
         }
         var month = expiry ? expiry.substring(6,10)+'-'+expiry.substring(3,5) : currentMonth;
 
-        // Check duplicate
-        var isDup = policy && (rawData.find(function(x){return x.policy===policy;}) || records.find(function(x){return x.policy===policy;}));
+        // Check duplicate — only by policy number (same client can have multiple policies)
+        var isDup = policy && (
+          rawData.find(function(x){return x.policy && x.policy===policy;}) ||
+          records.find(function(x){return x.policy && x.policy===policy;})
+        );
         var status = isDup ? 'dup' : 'new';
         if (isDup) dupes++;
 
@@ -2001,7 +2030,7 @@ function importIView(input) {
         imported++;
       }
 
-      // Merge with existing rawData (avoid re-import dupes)
+      // Remove exact duplicates by policy number only
       var existingPolicies = rawData.map(function(r){return r.policy;}).filter(Boolean)
         .concat(records.map(function(r){return r.policy;}).filter(Boolean));
       newRaw = newRaw.filter(function(r){
