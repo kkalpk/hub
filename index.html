@@ -319,8 +319,8 @@ mono{font-family:'IBM Plex Mono',monospace;}
 
 /* ── RAW ── */
 .raw-info{background:var(--purple-bg);border:1px solid var(--purple-light);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--purple);margin-bottom:12px;}
-.raw-tbl{background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
-.raw-thead{display:grid;grid-template-columns:28px 140px 120px 100px 65px 80px 85px 1fr;background:var(--bg);padding:6px 0;border-bottom:1px solid var(--border2);}
+.raw-tbl{background:#fff;border-radius:6px;overflow:visible;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.raw-thead{display:grid;grid-template-columns:28px 140px 120px 100px 65px 80px 85px 1fr;background:var(--bg);padding:6px 0;border-bottom:1px solid var(--border2);position:sticky;top:0;z-index:10;box-shadow:0 2px 4px rgba(0,0,0,0.07);}
 .raw-th{padding:0 8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);}
 .raw-row{display:grid;grid-template-columns:28px 140px 120px 100px 65px 80px 85px 1fr;padding:7px 0;border-bottom:1px solid var(--border);align-items:center;}
 .raw-row:last-child{border:none;}
@@ -1843,7 +1843,7 @@ function renderRaw(){
       '<div style="padding:0 8px;font-size:10px;font-family:IBM Plex Mono,monospace">'+r.expiry+'</div>'+
       '<div style="padding:0 8px;font-size:11px;font-weight:700;font-family:IBM Plex Mono,monospace">'+r.premium+'€</div>'+
       '<div style="padding:0 8px"><span class="rsrc '+src[0]+'">'+src[1]+'</span></div>'+
-      '<div style="padding:0 8px;display:flex;align-items:center;gap:6px">'+stL[r.status]+(r.status==='new'?'<button class="btn promo" style="font-size:9px;padding:2px 6px" onclick="promoteOne('+r.id+')">&#11014; Promote</button>':'')+'</div>'+
+      '<div style="padding:0 8px;display:flex;align-items:center;gap:6px">'+stL[r.status]+(r.status==='new'?'<button class="btn promo" style="font-size:9px;padding:2px 6px" onclick="promoteOne('+r.id+')">&#11014; Promote</button>':r.dupNote?'<span style="font-size:9px;color:#b45309;max-width:220px;white-space:normal">'+r.dupNote+'</span>':'')+'</div>'+
     '</div>';
   }).join('');
 }
@@ -2007,12 +2007,14 @@ function importIView(input) {
         var month = expiry ? expiry.substring(6,10)+'-'+expiry.substring(3,5) : currentMonth;
 
         // Check duplicate — only by policy number (same client can have multiple policies)
-        var isDup = policy && (
+        var dupMatch = policy ? (
+          newRaw.find(function(x){return x.policy && x.policy===policy;}) ||
           rawData.find(function(x){return x.policy && x.policy===policy;}) ||
           records.find(function(x){return x.policy && x.policy===policy;})
-        );
-        var status = isDup ? 'dup' : 'new';
-        if (isDup) dupes++;
+        ) : null;
+        var status = dupMatch ? 'dup' : 'new';
+        var dupNote = dupMatch ? ('⚠️ Διπλό: βρέθηκε ήδη συμβόλαιο ' + policy + (dupMatch.client?' ('+dupMatch.client+')':'')) : '';
+        if (dupMatch) dupes++;
 
         var isMotor = branch==='Αυτοκινήτου'||branch==='Οδικής Βοήθειας';
         var isFire  = branch==='Πυρός';
@@ -2025,22 +2027,17 @@ function importIView(input) {
           expiry: expiry, month: month,
           phone: phone, email: '', parent: client, kip: '', note: '',
           isProposal: false, source: 'iview', status: status,
+          dupNote: dupNote,
           last: '—'
         });
         imported++;
       }
 
-      // Remove exact duplicates by policy number only
-      var existingPolicies = rawData.map(function(r){return r.policy;}).filter(Boolean)
-        .concat(records.map(function(r){return r.policy;}).filter(Boolean));
-      newRaw = newRaw.filter(function(r){
-        return !r.policy || existingPolicies.indexOf(r.policy) < 0;
-      });
       rawData = rawData.concat(newRaw);
 
       input.value = '';
       renderRaw(); updateBadges();
-      showToast('Import: '+newRaw.length+' εγγραφές'+(dupes?' ('+dupes+' διπλότυπα)':''),'#166534');
+      showToast('Import: '+newRaw.length+' εγγραφές'+(dupes?' ('+dupes+' διπλότυπα παραλείφθηκαν)':''),'#166534');
     } catch(err) {
       showToast('Σφάλμα import: '+err.message,'#b91c1c');
       console.error(err);
