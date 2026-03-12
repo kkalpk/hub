@@ -1311,7 +1311,7 @@ function buildCard(r,b){
 // EDIT FIELD
 // ════════════════════════════════════════════════════
 function editField(id,field){
-  var r=records.find(function(x){return x.id===id;});if(!r)return;
+  var r=records.find(function(x){return x.id==id;});if(!r)return;
   var pfx=field==='email'?'e':'p';
   var valEl=document.getElementById('efv-'+pfx+'-'+id);if(!valEl)return;
   var orig=r[field]||'';var icon=field==='email'?'&#9993; ':'&#128222; ';
@@ -1327,7 +1327,7 @@ function editField(id,field){
 // EDIT PREMIUM (manual entry)
 // ════════════════════════════════════════════════════
 function editPremium(id){
-  var r=records.find(function(x){return x.id===id;});if(!r)return;
+  var r=records.find(function(x){return x.id==id;});if(!r)return;
   var valEl=document.getElementById('prem-v-'+id);if(!valEl)return;
   var orig=r.premium;var parent=valEl.parentElement;
   parent.innerHTML='<input id="pi-'+id+'" style="border:1px solid var(--blue);border-radius:3px;padding:1px 4px;font-size:11px;font-family:IBM Plex Mono,monospace;font-weight:700;color:var(--text);background:#fff;width:80px;" value="'+orig+'" onclick="event.stopPropagation()">';
@@ -1366,7 +1366,7 @@ var tmplReplyBody=[
 ];
 
 function openTemplate(id){
-  var r=records.find(function(x){return x.id===id;});if(!r)return;
+  var r=records.find(function(x){return x.id==id;});if(!r)return;
   var sameClient=records.filter(function(x){return x.client===r.client&&!closedIds[x.id];});
   var hasOD=sameClient.some(function(x){return x.isOD;});
   // Count prior mail actions for this client to auto-suggest reply templates
@@ -1401,7 +1401,7 @@ function openTemplate(id){
 }
 
 function buildTmplContent(id,idx){
-  var r=records.find(function(x){return x.id===id;});if(!r)return '';
+  var r=records.find(function(x){return x.id==id;});if(!r)return '';
   if(tmplIsReply[idx]){
     // Reply template — show copy-ready text
     var txt=tmplReplyBody[idx];
@@ -1443,7 +1443,7 @@ function selectTmpl(n){
 }
 
 function copyFullTable(id){
-  var r=records.find(function(x){return x.id===id;});if(!r)return;
+  var r=records.find(function(x){return x.id==id;});if(!r)return;
   var sameClient=records.filter(function(x){return x.client===r.client&&!closedIds[x.id];});
   var txt='';
   sameClient.forEach(function(x){
@@ -1462,7 +1462,7 @@ function copyFullTable(id){
 
 function confirmTemplate(){
   var id=window._tmplRecId;var sel=window._tmplSel;
-  var r=records.find(function(x){return x.id===id;});if(!r)return;
+  var r=records.find(function(x){return x.id==id;});if(!r)return;
   closeModal();
   var isReply=tmplIsReply[sel];
   var label=isReply?('Reply '+(sel===4?'2η':'3η')+' Υπενθύμιση'):'Mail Template '+(sel+1);
@@ -1477,7 +1477,7 @@ function confirmTemplate(){
 // TRAIL (history per policy)
 // ════════════════════════════════════════════════════
 function openTrail(id){
-  var r=records.find(function(x){return x.id===id;});if(!r)return;
+  var r=records.find(function(x){return x.id==id;});if(!r)return;
   var entries=actLog.filter(function(e){return e.policy===r.policy||e.client===r.client;});
   document.getElementById('trailTitle').textContent='Ιστορικό — '+r.client;
   document.getElementById('trailSub').textContent=r.insurer+' · '+r.branch+' · '+r.policy;
@@ -1529,7 +1529,7 @@ function selectSnzPreset(i,val){
 }
 function confirmSnooze(){
   var id=window._snzRecId;
-  var r=records.find(function(x){return x.id===id;});if(!r)return;
+  var r=records.find(function(x){return x.id==id;});if(!r)return;
   var dateInp=document.getElementById('snzDate');
   var snzNote=(document.getElementById('snzNote')||{}).value||'';
   var snzDate=window._snzDate;
@@ -1579,7 +1579,7 @@ function confirmMailChoice(){
 // ACTIONS
 // ════════════════════════════════════════════════════
 function doAction(id,act){
-  var r=records.find(function(x){return x.id===id;});if(!r)return;
+  var r=records.find(function(x){return x.id==id;});if(!r)return;
   var modals=['call','sms','paid','confirm_paid','cancel','norenewal','replaced','noresp','send_policy','snooze'];
   if(modals.indexOf(act)>=0){
     if(act==='snooze'){openSnoozeModal(r);return;}
@@ -1844,7 +1844,7 @@ function renderMonthly(){
   });
 }
 function toggleNote(id){var n=document.getElementById('ned-'+id);if(!n)return;n.classList.toggle('open');if(n.classList.contains('open')){var ta=document.getElementById('nta-'+id);if(ta){ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);}}}
-function saveNote(id){var r=records.find(function(x){return x.id===id;});if(!r)return;var ta=document.getElementById('nta-'+id);if(!ta)return;r.note=ta.value.trim();document.getElementById('ned-'+id).classList.remove('open');saveNotes();graphPatchPolicy(r,{Note:r.note});showToast(r.note?'Σχόλιο αποθηκεύτηκε':'Σχόλιο διαγράφηκε','#b45309');renderMonthly();renderQueue();}
+function saveNote(id){var r=records.find(function(x){return x.id==id;});if(!r)return;var ta=document.getElementById('nta-'+id);if(!ta)return;r.note=ta.value.trim();document.getElementById('ned-'+id).classList.remove('open');saveNotes();graphPatchPolicy(r,{Note:r.note});showToast(r.note?'Σχόλιο αποθηκεύτηκε':'Σχόλιο διαγράφηκε','#b45309');renderMonthly();renderQueue();}
 function cancelNote(id){var n=document.getElementById('ned-'+id);if(n)n.classList.remove('open');}
 
 // ════════════════════════════════════════════════════
@@ -1869,7 +1869,7 @@ function renderSORegistry(){
       '<div style="padding:0 8px;border-left:1px solid var(--border);display:flex;gap:4px;align-items:center">'+act+'</div></div>';
   }).join('');
 }
-function soConfirm(id,keep){var r=soRegistry.find(function(x){return x.id===id;});if(!r)return;r.soStatus='active';r.confirmThisYear=keep?fmtDate(TODAY):fmtDate(TODAY)+' — Άρση';showToast(keep?'Πάγια επιβεβαιώθηκε':'Πάγια αφαιρέθηκε','#0f766e');renderSORegistry();}
+function soConfirm(id,keep){var r=soRegistry.find(function(x){return x.id==id;});if(!r)return;r.soStatus='active';r.confirmThisYear=keep?fmtDate(TODAY):fmtDate(TODAY)+' — Άρση';showToast(keep?'Πάγια επιβεβαιώθηκε':'Πάγια αφαιρέθηκε','#0f766e');renderSORegistry();}
 
 // ════════════════════════════════════════════════════
 // RAW
@@ -1895,7 +1895,7 @@ function renderRaw(){
   }).join('');
 }
 function promoteOne(id){
-  var r=rawData.find(function(x){return x.id===id;});if(!r)return;
+  var r=rawData.find(function(x){return x.id==id;});if(!r)return;
   // Check for duplicate by policy OR plate
   var dupByPolicy=r.policy&&records.find(function(x){return x.policy&&x.policy===r.policy;});
   var dupByPlate=r.plate&&records.find(function(x){return x.plate&&x.plate===r.plate;});
@@ -1934,7 +1934,7 @@ function promoteOne(id){
   renderRaw();showToast('Promoted: '+r.client,'#166534');
 }
 function forcePromote(id){
-  var r=rawData.find(function(x){return x.id===id;});
+  var r=rawData.find(function(x){return x.id==id;});
   if(r){
     r.status='ok'; r.payment='UNPAID';
     graphPatchPolicy(r, {Payment_Status: 'UNPAID', Last_Action: 'Promoted'});
@@ -1957,7 +1957,7 @@ function promoteAll(){
   showToast('✅ Όλα Promoted ('+news.length+')','#166534');
 }
 function deleteRawRow(id){
-  var r=rawData.find(function(x){return x.id===id;});
+  var r=rawData.find(function(x){return x.id==id;});
   if(!r) return;
   if(!confirm('Διαγραφή: '+r.client+(r.policy?' ('+r.policy+')':'')+' — '+r.branch+';')) return;
   if(r.graphId) graphDeletePolicy(r.graphId);
