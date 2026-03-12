@@ -1116,7 +1116,27 @@ async function saveSnooze(){/* Graph handles persistence via graphPatchPolicy */
 // ════════════════════════════════════════════════════
 // HELPERS
 // ════════════════════════════════════════════════════
-function showToast(msg,color){var t=document.getElementById('toast');t.textContent=msg;t.style.background=color||'#0f172a';t.style.display='block';clearTimeout(t._t);t._t=setTimeout(function(){t.style.display='none';},2800);}
+// ════════════════════════════════════════════════════
+// TOAST WITH UNDO
+// ════════════════════════════════════════════════════
+var _undoFn=null,_undoTimer=null;
+function showToast(msg,color,undoFn){
+  var t=document.getElementById('toast');
+  var inner=msg;
+  if(undoFn){
+    _undoFn=undoFn;
+    inner=msg+'<button onclick="doUndo()" style="margin-left:10px;padding:2px 10px;border-radius:4px;border:1.5px solid rgba(255,255,255,0.7);background:transparent;color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:IBM Plex Sans,sans-serif">↩ Αναίρεση</button>';
+  } else {_undoFn=null;}
+  t.innerHTML=inner;
+  t.style.background=color||'#0f172a';t.style.display='block';
+  clearTimeout(t._t);clearTimeout(_undoTimer);
+  var hide=function(){t.style.display='none';_undoFn=null;};
+  t._t=setTimeout(hide,undoFn?5000:2800);
+  _undoTimer=t._t;
+}
+function doUndo(){
+  if(_undoFn){var fn=_undoFn;_undoFn=null;clearTimeout(_undoTimer);document.getElementById('toast').style.display='none';fn();}
+}
 function cpBtn(text,label){var s=text.replace(/\\/g,'\\\\').replace(/'/g,"\\'"),l=label.replace(/'/g,"\\'");return '<span class="cpw" onclick="doCopy(\''+s+'\',\''+l+'\')" title="Αντιγραφή: '+label+'"><span>'+text+'</span><span class="ci">&#128203;</span></span>';}
 function doCopy(text,label){if(navigator.clipboard)navigator.clipboard.writeText(text).catch(function(){});showToast('📋 '+text,'#1d4ed8');}
 function nowStr(){var d=new Date();return fmtDate(d)+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');}
@@ -1127,8 +1147,11 @@ function expTxt(days){return days<0?(Math.abs(days)+'μ πριν!'):days===0?'Σ
 function payBadge(p){if(p==='PAID')return '<span class="bdg paid">✓ PAID</span>';if(p==='PAID_PENDING')return '<span class="bdg pendg">⏳ PENDING</span>';return '<span class="bdg unpaid">✗ UNPAID</span>';}
 function extraBadge(r){if(r.sos)return '<span class="bdg sos">&#128680; SOS</span>';if(r.hold==='CUSTOMER_PROMISE')return '<span class="bdg promise">&#129309; '+r.promise+'</span>';return '';}
 
-function addLog(r,type,label,detail,amt,needsMech){
-  var entry={time:nowStr(),user:currentUser.email||'KK',type:type,label:label,detail:detail,amt:amt||'',client:r.client,parent:r.parent||'',policy:r.policy,mechDone:!needsMech,needsMech:needsMech};
+function addLog(r,type,label,detail,amt,needsMech,snap){
+  var u=currentUser&&currentUser.email?currentUser.email:'KK';
+  var d2=detail?('['+u+'] '+detail):('['+u+']');
+  var entry={time:nowStr(),user:u,type:type,label:label,detail:d2,amt:amt||'',client:r.client,parent:r.parent||'',policy:r.policy,mechDone:!needsMech,needsMech:needsMech};
+  if(snap)entry.snap=JSON.stringify(snap);
   actLog.unshift(entry);
   saveLog();updateBadges();renderLog();
   graphCreateLog(entry);
@@ -1569,18 +1592,44 @@ function openTrail(id){
   document.getElementById('trailSub').textContent=r.insurer+' · '+r.branch+' · '+r.policy;
   var body=document.getElementById('trailBody');
   if(!entries.length){body.innerHTML='<div class="trail-empty">Καμία ενέργεια ακόμα για αυτό το συμβόλαιο.</div>';document.getElementById('trailOverlay').classList.add('open');return;}
-  var dotIco={mail:'✉',call:'📞',sms:'📱',paid:'€',policy:'📄',cancelled:'✗',norenewal:'🚫',replaced:'🔄',noresp:'👻',bulk:'📧',snooze:'🕐',note:'💬'};
-  body.innerHTML=entries.map(function(e){
+  var dotIco={mail:'✉',call:'📞',sms:'📱',paid:'€',policy:'📄',cancelled:'✗',norenewal:'🚫',replaced:'🔄',noresp:'👻',bulk:'📧',snooze:'🕐',note:'💬',undo:'↩'};
+  body.innerHTML=entries.map(function(e,i){
     var dc=e.type||'mail';
+    // Κουμπί επαναφοράς — μόνο για entries που έχουν snapshot και ΔΕΝ είναι undo entries
+    var restoreBtn='';
+    if(e.snap&&e.type!=='undo'){
+      var snapEsc=e.snap.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      restoreBtn='<button onclick="restoreFromTrail(''+r.id+'',this)" data-snap=\''+snapEsc+'\' style="margin-top:5px;padding:2px 9px;font-size:10px;border-radius:4px;border:1px solid #7c3aed;background:#f5f3ff;color:#7c3aed;cursor:pointer;font-family:IBM Plex Sans,sans-serif;font-weight:600">↩ Επαναφορά σε αυτή την κατάσταση</button>';
+    }
     return '<div class="trail-entry">'+
       '<div class="trail-dot '+dc+'">'+(dotIco[dc]||'·')+'</div>'+
       '<div class="trail-info">'+
         '<div class="trail-action">'+e.label+'</div>'+
         '<div class="trail-detail">'+e.detail+'</div>'+
-        '<div class="trail-time">'+e.time+' · '+e.user+(e.amt?' · '+e.amt:'')+'</div>'+
+        '<div class="trail-time">'+e.time+' · <strong>'+e.user+'</strong>'+(e.amt?' · '+e.amt:'')+'</div>'+
+        restoreBtn+
       '</div></div>';
   }).join('');
   document.getElementById('trailOverlay').classList.add('open');
+}
+function restoreFromTrail(recId,btn){
+  if(!confirm('Επαναφορά σε αυτή την κατάσταση; Η τρέχουσα κατάσταση θα αντικατασταθεί.'))return;
+  var snapStr=btn.getAttribute('data-snap');
+  if(!snapStr)return;
+  try{var s=JSON.parse(snapStr);}catch(ex){showToast('Σφάλμα snapshot','#b91c1c');return;}
+  var rec=records.find(function(x){return x.id==recId;});if(!rec)return;
+  var u=currentUser&&currentUser.email?currentUser.email:'KK';
+  rec.payment=s.payment;rec.sent=s.sent;rec.sos=s.sos;rec.hold=s.hold;
+  rec.snoozeActive=s.snoozeActive;rec.snoozeUntil=s.snoozeUntil;
+  rec.closeReason=s.closeReason;rec.last=s.last;
+  delete closedIds[s.id];saveClosed();
+  graphPatchPolicy(rec,{Payment_Status:s.payment,Sent:s.sent==='YES',
+    Snooze_Active:s.snoozeActive,Close_Reason:s.closeReason||'',
+    Last_Action:'↩ Trail Restore — '+nowStr()+' — '+u});
+  addLog(rec,'undo','↩ Trail Restore','Επαναφορά κατάστασης: '+s.payment+' ('+u+')','',false);
+  renderQueue();updateBadges();
+  closeTrail();
+  showToast('↩ Επαναφορά ολοκληρώθηκε','#6d28d9');
 }
 function closeTrail(){document.getElementById('trailOverlay').classList.remove('open');}
 
@@ -1767,36 +1816,59 @@ function closeModal(){document.getElementById('modalOverlay').classList.remove('
 function confirmAction(){
   if(!currentModal)return;var r=currentModal.r,type=currentModal.type;closeModal();
   function gv(id){return(document.getElementById(id)||{}).value||'';}
+  var u=currentUser&&currentUser.email?currentUser.email:'KK';
+  // Snapshot πριν από κάθε αλλαγή — χρησιμοποιείται για undo και trail restore
+  var snap={id:r.id,graphId:r.graphId||null,payment:r.payment,sent:r.sent,sos:r.sos,hold:r.hold,
+    snoozeActive:r.snoozeActive,snoozeUntil:r.snoozeUntil||null,closeReason:r.closeReason||'',last:r.last||''};
+  function applySnap(s,label){
+    var rec=records.find(function(x){return x.id===s.id;});if(!rec)return;
+    rec.payment=s.payment;rec.sent=s.sent;rec.sos=s.sos;rec.hold=s.hold;
+    rec.snoozeActive=s.snoozeActive;rec.snoozeUntil=s.snoozeUntil;
+    rec.closeReason=s.closeReason;rec.last=s.last;
+    delete closedIds[s.id];saveClosed();
+    graphPatchPolicy(rec,{Payment_Status:s.payment,Sent:s.sent==='YES',
+      Snooze_Active:s.snoozeActive,Close_Reason:s.closeReason||'',
+      Last_Action:(label||'↩ ΑΝΑΙΡΕΣΗ')+' — '+nowStr()+' — '+u});
+    addLog(rec,'undo','↩ Αναίρεση — '+(label||''),'Επαναφορά από: '+s.payment,'',false);
+    renderQueue();updateBadges();
+    showToast('↩ Αναίρεση ολοκληρώθηκε','#6d28d9');
+  }
   if(type==='call'){
-    addLog(r,'call','Call',gv('cR')+(gv('cN')?' — '+gv('cN'):''),r.premium+'€',false);
-    showToast('Call — '+r.client.split(' ')[0],'#166534');r.last='Call — σήμερα';renderQueue();
+    addLog(r,'call','Call',gv('cR')+(gv('cN')?' — '+gv('cN'):''),r.premium+'€',false,snap);
+    r.last='Call — σήμερα';renderQueue();
+    showToast('Call — '+r.client.split(' ')[0],'#166534',function(){applySnap(snap,'Call');});
   }else if(type==='sms'){
-    addLog(r,'sms','SMS',gv('smsT')+(gv('smsN')?' — '+gv('smsN'):''),r.premium+'€',false);
-    showToast('SMS — '+r.client.split(' ')[0],'#1d4ed8');r.last='SMS — σήμερα';renderQueue();
+    addLog(r,'sms','SMS',gv('smsT')+(gv('smsN')?' — '+gv('smsN'):''),r.premium+'€',false,snap);
+    r.last='SMS — σήμερα';renderQueue();
+    showToast('SMS — '+r.client.split(' ')[0],'#1d4ed8',function(){applySnap(snap,'SMS');});
   }else if(type==='paid'||type==='confirm_paid'){
     r.payment='PAID';r.sos=false;r.hold='';
-    addLog(r,'paid','PAID',gv('pM'),r.premium+'€',true);
-    addPend(r,'PAID '+r.premium+'€ ('+gv('pM')+')'+(r.credit?' — Αντιλογισμός: δες μηχ/φηση':'')+(r.isProposal?' — ⚠️ ΕΛΕΓΞΕ iView: άλλαξε ΠΡΟΤΑΣΗ ΑΝΑΝΕΩΣΗΣ → ΑΝΑΝΕΩΤΗΡΙΟ':''));
-    graphPatchPolicy(r,{Payment_Status:'PAID',Last_Action:'PAID — '+nowStr()});
-    showToast('PAID — '+r.client.split(' ')[0],'#166534');r.last='PAID — σήμερα';renderQueue();
+    addLog(r,'paid','PAID',gv('pM'),r.premium+'€',true,snap);
+    addPend(r,'PAID '+r.premium+'€ ('+gv('pM')+')'+(r.credit?' — Αντιλογισμός':'')+(r.isProposal?' — ⚠️ ΕΛΕΓΞΕ iView':''));
+    graphPatchPolicy(r,{Payment_Status:'PAID',Last_Action:'PAID — '+nowStr()+' — '+u});
+    r.last='PAID — σήμερα';renderQueue();
+    showToast('PAID — '+r.client.split(' ')[0],'#166534',function(){applySnap(snap,'PAID');});
   }else if(type==='send_policy'){
     r.sent='YES';closedIds[r.id]=true;saveClosed();
-    addLog(r,'policy','Policy Sent','→ '+r.email,r.premium+'€',true);
+    addLog(r,'policy','Policy Sent','→ '+r.email,r.premium+'€',true,snap);
     addPend(r,'Policy Sent — καταχώρηση εξόφλησης');
-    graphPatchPolicy(r,{Sent:true,Close_Reason:'paid_sent',Last_Action:'Policy Sent — '+nowStr()});
-    showToast('Συμβόλαιο — '+r.client.split(' ')[0],'#6d28d9');renderQueue();updateBadges();
+    graphPatchPolicy(r,{Sent:true,Close_Reason:'paid_sent',Last_Action:'Policy Sent — '+nowStr()+' — '+u});
+    renderQueue();updateBadges();
+    showToast('Συμβόλαιο — '+r.client.split(' ')[0],'#6d28d9',function(){applySnap(snap,'Policy Sent');});
   }else if(type==='cancel'){
     closedIds[r.id]=true;saveClosed();
-    addLog(r,'cancelled','CANCELLED',gv('cxR')+(gv('cxN')?' — '+gv('cxN'):''),'—',true);
+    addLog(r,'cancelled','CANCELLED',gv('cxR')+(gv('cxN')?' — '+gv('cxN'):''),'—',true,snap);
     addPend(r,'CANCELLED — '+gv('cxR')+(gv('cxN')?' — '+gv('cxN'):''));
-    graphPatchPolicy(r,{Close_Reason:'cancelled',Last_Action:'CANCELLED — '+nowStr()});
-    showToast('Cancelled — '+r.client.split(' ')[0],'#b91c1c');renderQueue();updateBadges();
+    graphPatchPolicy(r,{Close_Reason:'cancelled',Last_Action:'CANCELLED — '+nowStr()+' — '+u});
+    renderQueue();updateBadges();
+    showToast('Cancelled — '+r.client.split(' ')[0],'#b91c1c',function(){applySnap(snap,'CANCELLED');});
   }else if(type==='norenewal'){
     closedIds[r.id]=true;saveClosed();
-    addLog(r,'norenewal','NOT_RENEWED',gv('nrR'),'—',true);
+    addLog(r,'norenewal','NOT_RENEWED',gv('nrR'),'—',true,snap);
     addPend(r,'NOT_RENEWED — '+gv('nrR')+' → Ευκαιρία πώλησης σε 6μ.');
-    graphPatchPolicy(r,{Close_Reason:'norenewal',Last_Action:'NOT_RENEWED — '+nowStr()});
-    showToast('Not Renewed — '+r.client.split(' ')[0],'#b91c1c');renderQueue();updateBadges();
+    graphPatchPolicy(r,{Close_Reason:'norenewal',Last_Action:'NOT_RENEWED — '+nowStr()+' — '+u});
+    renderQueue();updateBadges();
+    showToast('Not Renewed — '+r.client.split(' ')[0],'#b91c1c',function(){applySnap(snap,'NOT_RENEWED');});
   }else if(type==='replaced'){
     var replT=(document.getElementById('replType')||{}).value||'other_broker';
     var newIns=gv('nI')||'';var newPkg=gv('nPkg')||'';
@@ -1808,7 +1880,6 @@ function confirmAction(){
     }else if(replT==='change_insurer'){
       logDetail='ΑΛΛΑΓΗ ΑΣΦΑΛΙΣΤΙΚΗΣ → '+(newIns||'?');
       pendDetail='ΑΛΛΑΓΗ ΑΣΦΑΛΙΣΤΙΚΗΣ → '+(newIns||'?')+' — νέα γραμμή ΑΙΤΗΣΗ δημιουργήθηκε';
-      // Create new ΑΙΤΗΣΗ line
       var newId=Date.now();
       records.push({id:newId,client:r.client,insurer:newIns||'',branch:r.branch,policy:'',expiry:'',payment:'UNPAID',premium:'—',premNum:0,plate:r.plate||'',email:r.email||'',phone:r.phone||'',parent:r.parent||'',note:'Αλλαγή από '+r.insurer,isProposal:false,month:currentMonth,last:'Νέα ΑΙΤΗΣΗ από αλλαγή ασφαλιστικής'});
     }else{
@@ -1817,15 +1888,17 @@ function confirmAction(){
       var newId2=Date.now();
       records.push({id:newId2,client:r.client,insurer:r.insurer,branch:r.branch,policy:'',expiry:'',payment:'UNPAID',premium:'—',premNum:0,plate:r.plate||'',email:r.email||'',phone:r.phone||'',parent:r.parent||'',note:'Αλλαγή πακέτου: '+(newPkg||''),isProposal:false,month:currentMonth,last:'Νέα ΑΙΤΗΣΗ από αλλαγή πακέτου'});
     }
-    addLog(r,'replaced',logDetail,logDetail,'—',true);
+    addLog(r,'replaced',logDetail,logDetail,'—',true,snap);
     addPend(r,pendDetail);
-    showToast('Αλλαγή — '+r.client.split(' ')[0],'#0f766e');renderQueue();updateBadges();
+    renderQueue();updateBadges();
+    showToast('Αλλαγή — '+r.client.split(' ')[0],'#0f766e',function(){applySnap(snap,'REPLACED');});
   }else if(type==='noresp'){
     closedIds[r.id]=true;saveClosed();
-    addLog(r,'noresp','NO_RESPONSE',gv('nrN')||'Δεν εντοπίστηκε','—',true);
+    addLog(r,'noresp','NO_RESPONSE',gv('nrN')||'Δεν εντοπίστηκε','—',true,snap);
     addPend(r,'NO_RESPONSE');
-    graphPatchPolicy(r,{Close_Reason:'noresp',Last_Action:'NO_RESPONSE — '+nowStr()});
-    showToast('No Response — '+r.client.split(' ')[0],'#64748b');renderQueue();updateBadges();
+    graphPatchPolicy(r,{Close_Reason:'noresp',Last_Action:'NO_RESPONSE — '+nowStr()+' — '+u});
+    renderQueue();updateBadges();
+    showToast('No Response — '+r.client.split(' ')[0],'#64748b',function(){applySnap(snap,'NO_RESPONSE');});
   }
 }
 
