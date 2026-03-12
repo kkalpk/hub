@@ -537,6 +537,8 @@ mono{font-family:'IBM Plex Mono',monospace;}
       <option value="noresp">👻 Δεν Απάντησαν</option>
     </select>
     <span id="archCount" style="font-size:11px;color:var(--text3)"></span>
+    <div style="flex:1"></div>
+    <button class="btn chk" style="font-size:10px;padding:4px 12px;background:#6d28d9;color:#fff;border:none" onclick="setupColumns()" title="Δημιουργία στηλών στα SharePoint lists (μόνο μία φορά)">⚙️ Setup Columns</button>
   </div>
   <div class="log-tbl">
     <div style="display:grid;grid-template-columns:3px 155px 105px 110px 78px 80px 100px 1fr;background:var(--bg);padding:6px 0;border-bottom:1px solid var(--border2);">
@@ -808,7 +810,39 @@ async function ensureList(listName) {
   console.log('✅ Columns created for:', listName);
 }
 
-function setLoading(msg, pct) {
+async function setupColumns() {
+  if(!graphSiteId) { showToast('Συνδέσου πρώτα','#b91c1c'); return; }
+  showToast('Δημιουργία στηλών...','#6d28d9');
+  var names = ['PK_Policies','PK_ActivityLog','PK_PendingReg','PK_SORegistry'];
+  var total=0, failed=0;
+  for(var n=0; n<names.length; n++){
+    var listName = names[n];
+    var listId = graphListIds[listName];
+    if(!listId){ showToast('⚠️ List '+listName+' δεν βρέθηκε','#b45309'); continue; }
+    var schema = LIST_SCHEMAS[listName];
+    // Get existing columns
+    var existing = [];
+    try {
+      var cols = await graphCall('GET', '/sites/'+graphSiteId+'/lists/'+listId+'/columns?$select=name&$top=100');
+      existing = (cols.value||[]).map(function(c){return c.name.toLowerCase();});
+    } catch(e){}
+    for(var i=0; i<schema.columns.length; i++){
+      var col = schema.columns[i];
+      if(existing.indexOf(col.name.toLowerCase())>=0) continue; // already exists
+      var colBody = {name:col.name, hidden:false};
+      if(col.text) colBody.text = col.text;
+      if(col.number) colBody.number = col.number;
+      if(col.boolean) colBody.boolean = col.boolean;
+      if(col.dateTime) colBody.dateTime = col.dateTime;
+      try {
+        await graphCall('POST', '/sites/'+graphSiteId+'/lists/'+listId+'/columns', colBody);
+        total++;
+      } catch(e){ failed++; console.warn('Column',col.name,'failed:',e.message); }
+    }
+  }
+  showToast('✅ Setup ολοκληρώθηκε: '+total+' στήλες δημιουργήθηκαν'+(failed?' ('+failed+' απέτυχαν)':''),'#166534');
+}
+
   var ov = document.getElementById('loadingOverlay');
   if (ov) ov.style.display = 'flex';
   var msgEl = document.getElementById('loadingMsg'); if(msgEl) msgEl.textContent = msg;
@@ -956,7 +990,11 @@ async function fetchAllData() {
     await discoverSiteAndLists();
     setLoading('Φόρτωση Συμβολαίων...', 60);
     var polResp = await graphCall('GET', listPath('PK_Policies') + '/items?$expand=fields&$top=5000');
-    records = (polResp.value || []).map(itemToRecord);
+    var allPolicies = (polResp.value || []).map(itemToRecord);
+    // Split: RAW (not yet promoted) vs active
+    rawData = allPolicies.filter(function(r){ return r.payment === 'RAW'; })
+      .map(function(r){ return Object.assign({}, r, {status: 'new', source: r.source || 'iview'}); });
+    records = allPolicies.filter(function(r){ return r.payment !== 'RAW'; });
     setLoading('Φόρτωση Activity Log...', 72);
     var logResp = await graphCall('GET', listPath('PK_ActivityLog') + '/items?$expand=fields&$top=5000');
     actLog = (logResp.value || []).map(logItemToLog);
@@ -969,7 +1007,7 @@ async function fetchAllData() {
     setLoading('Έτοιμο!', 100);
     setTimeout(function() {
       document.getElementById('loadingOverlay').style.display = 'none';
-      renderQueue(); renderLog(); renderPend(); renderKPI(); renderSORegistry(); updateBadges();
+      renderQueue(); renderLog(); renderPend(); renderKPI(); renderSORegistry(); renderRaw(); updateBadges();
     }, 400);
   } catch(e) {
     document.getElementById('loadingOverlay').style.display = 'none';
@@ -1886,57 +1924,44 @@ function promoteOne(id){
     document.getElementById('modalOverlay').classList.add('open');
     return;
   }
-  r.status='ok';
-  // Save to Graph PK_Policies
-  graphCreatePolicy(r).then(function(resp){
-    if(resp && resp.id){ r.graphId=resp.id; r.id=resp.id; }
-    records.push(Object.assign({},r,{id:r.graphId||r.id,snoozeUntil:null,snoozeActive:false,snoozeNote:'',sos:false,hold:'',credit:false,soHistory:false,promise:'',clientType:'personal',isOD:r.branch==='Οδικής Βοήθειας',code:r.kip||''}));
-    updateBadges();renderQueue();
-  });
+  r.status='ok'; r.payment='UNPAID';
+  // Promote = PATCH Payment_Status from RAW → UNPAID
+  graphPatchPolicy(r, {Payment_Status: 'UNPAID', Last_Action: 'Promoted'});
+  records.push(Object.assign({},r,{snoozeUntil:null,snoozeActive:false,snoozeNote:'',sos:false,hold:'',credit:false,soHistory:false,promise:'',clientType:'personal',isOD:r.branch==='Οδικής Βοήθειας',code:r.kip||''}));
+  rawData=rawData.filter(function(x){return x.id!==r.id;});
+  updateBadges();renderQueue();
   renderRaw();showToast('Promoted: '+r.client,'#166534');
 }
 function forcePromote(id){
   var r=rawData.find(function(x){return x.id===id;});
   if(r){
-    r.status='ok';
-    graphCreatePolicy(r).then(function(resp){
-      if(resp && resp.id){ r.graphId=resp.id; r.id=resp.id; }
-      records.push(Object.assign({},r,{id:r.graphId||r.id,snoozeUntil:null,snoozeActive:false,snoozeNote:'',sos:false,hold:'',credit:false,soHistory:false,promise:'',clientType:'personal',isOD:r.branch==='Οδικής Βοήθειας',code:r.kip||''}));
-      updateBadges();renderQueue();
-    });
+    r.status='ok'; r.payment='UNPAID';
+    graphPatchPolicy(r, {Payment_Status: 'UNPAID', Last_Action: 'Promoted'});
+    records.push(Object.assign({},r,{snoozeUntil:null,snoozeActive:false,snoozeNote:'',sos:false,hold:'',credit:false,soHistory:false,promise:'',clientType:'personal',isOD:r.branch==='Οδικής Βοήθειας',code:r.kip||''}));
+    rawData=rawData.filter(function(x){return x.id!==r.id;});
+    updateBadges();renderQueue();
   }
   closeModal();renderRaw();showToast('Promoted (επιβεβαιώθηκε)','#166534');
 }
 function promoteAll(){
   var news=rawData.filter(function(r){return r.status==='new';});
-  var hasDups=news.some(function(r){
-    return (r.policy&&records.find(function(x){return x.policy&&x.policy===r.policy;}))||
-           (r.plate&&records.find(function(x){return x.plate&&x.plate===r.plate;}));
-  });
-  if(hasDups){showToast('Υπάρχουν πιθανά διπλότυπα — Promote ένα-ένα για έλεγχο','#c2410c');return;}
+  if(!news.length){showToast('Δεν υπάρχουν νέες εγγραφές για Promote','#64748b');return;}
   news.forEach(function(r){
-    r.status='ok';
-    graphCreatePolicy(r).then(function(resp){
-      if(resp && resp.id){ r.graphId=resp.id; }
-      records.push(Object.assign({},r,{id:r.graphId||r.id,snoozeUntil:null,snoozeActive:false,snoozeNote:'',sos:false,hold:'',credit:false,soHistory:false,promise:'',clientType:'personal',isOD:r.branch==='Οδικής Βοήθειας',code:r.kip||''}));
-      updateBadges();renderQueue();
-    });
+    r.status='ok'; r.payment='UNPAID';
+    graphPatchPolicy(r, {Payment_Status: 'UNPAID', Last_Action: 'Promoted'});
+    records.push(Object.assign({},r,{snoozeUntil:null,snoozeActive:false,snoozeNote:'',sos:false,hold:'',credit:false,soHistory:false,promise:'',clientType:'personal',isOD:r.branch==='Οδικής Βοήθειας',code:r.kip||''}));
   });
-  renderRaw();showToast('Όλα Promoted ('+news.length+')','#166534');
+  rawData=rawData.filter(function(r){return r.status!=='ok';});
+  renderRaw();updateBadges();renderQueue();
+  showToast('✅ Όλα Promoted ('+news.length+')','#166534');
 }
 function deleteRawRow(id){
   var r=rawData.find(function(x){return x.id===id;});
   if(!r) return;
-  var msg='Διαγραφή: '+r.client+(r.policy?' ('+r.policy+')':'')+' — '+r.branch+';\nΑν έχει ήδη γίνει Promote θα διαγραφεί και από το SharePoint.';
-  if(!confirm(msg)) return;
-  // If it was promoted (has graphId in records), delete from SharePoint too
-  var promoted=records.find(function(x){return x.policy&&x.policy===r.policy&&r.policy;});
-  if(promoted && promoted.graphId){
-    graphDeletePolicy(promoted.graphId);
-    records=records.filter(function(x){return x.id!==promoted.id;});
-  }
+  if(!confirm('Διαγραφή: '+r.client+(r.policy?' ('+r.policy+')':'')+' — '+r.branch+';')) return;
+  if(r.graphId) graphDeletePolicy(r.graphId);
   rawData=rawData.filter(function(x){return x.id!==id;});
-  renderRaw();renderQueue();updateBadges();
+  renderRaw();updateBadges();
   showToast('Διαγράφηκε: '+r.client,'#b91c1c');
 }
 function deleteAllDups(){
@@ -2057,18 +2082,36 @@ function importIView(input) {
           premium: premStr, premNum: premNum,
           expiry: expiry, month: month,
           phone: phone, email: '', parent: client, kip: '', note: '',
-          isProposal: false, source: 'iview', status: status,
-          dupNote: dupNote,
+          isProposal: false, source: 'iview', status: 'new',
+          payment: 'RAW',
+          dupNote: '',
           last: '—'
         });
         imported++;
       }
 
-      rawData = rawData.concat(newRaw);
-
+      // Write to SharePoint in batches
       input.value = '';
-      renderRaw(); updateBadges();
-      showToast('Import: '+newRaw.length+' εγγραφές'+(dupes?' ('+dupes+' διπλότυπα παραλείφθηκαν)':''),'#166534');
+      var saved = 0;
+      showToast('Αποθήκευση ' + newRaw.length + ' εγγραφών στο SharePoint...', '#6d28d9');
+      var batchSize = 5;
+      async function saveBatch(idx) {
+        if (idx >= newRaw.length) {
+          rawData = rawData.concat(newRaw);
+          renderRaw(); updateBadges();
+          showToast('✅ Import: ' + newRaw.length + ' εγγραφές αποθηκεύτηκαν' + (dupes?' ('+dupes+' διπλότυπα παραλείφθηκαν)':''), '#166534');
+          return;
+        }
+        var batch = newRaw.slice(idx, idx + batchSize);
+        await Promise.all(batch.map(async function(r) {
+          var resp = await graphCreatePolicy(r);
+          if (resp && resp.id) { r.graphId = resp.id; r.id = resp.id; }
+          saved++;
+        }));
+        setLoading('Αποθήκευση... ' + saved + '/' + newRaw.length, 60 + Math.round(saved/newRaw.length*35));
+        await saveBatch(idx + batchSize);
+      }
+      await saveBatch(0);
     } catch(err) {
       showToast('Σφάλμα import: '+err.message,'#b91c1c');
       console.error(err);
