@@ -935,7 +935,7 @@ function itemToRecord(item) {
     sent: f.Sent ? 'YES' : 'NO',
     note: f.Note || '',
     isProposal: f.Is_Proposal || false,
-    hasSO: (f.Has_SO===true||f.Has_SO===1||f.Has_SO==='true'||f.Has_SO==='1'||f.Has_SO==='Yes'),
+    hasSO: false,
     snoozeUntil: isoToDisplay(f.Snooze_Until) || null,
     snoozeActive: !!f.Snooze_Active,
     snoozeNote: '',
@@ -943,7 +943,7 @@ function itemToRecord(item) {
     source: f.Source || '',
     last: f.Last_Action || '—',
     address: f.Address || '',
-    sos: false, hold: '', credit: false, soHistory: (f.Has_SO===true||f.Has_SO===1||f.Has_SO==='true'||f.Has_SO==='1'||f.Has_SO==='Yes'),
+    sos: false, hold: '', credit: false, soHistory: false,
     promise: '', clientType: 'personal', isOD: false, code: f.KIP || ''
   };
 }
