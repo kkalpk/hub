@@ -97,12 +97,6 @@ mono{font-family:'IBM Plex Mono',monospace;}
 .bucket.ntc .bkt-body{border-color:var(--blue-light);}
 .bucket.snz .bkt-hdr{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-light);}
 .bucket.snz .bkt-body{border-color:var(--purple-light);}
-.bucket.vip .bkt-hdr{background:#fff7ed;color:#9a3412;border:1px solid #fdba74;}
-.bucket.vip .bkt-body{border-color:#fdba74;}
-.bucket.vip .ac-stripe{background:#ea580c;}
-.bucket.hol .bkt-hdr{background:#fefce8;color:#713f12;border:1px solid #fde68a;}
-.bucket.hol .bkt-body{border-color:#fde68a;}
-.bucket.hol .ac-stripe{background:#ca8a04;}
 .bkt-body.hidden{display:none;}
 .empty-row{padding:10px 14px;font-size:11px;color:var(--text3);font-style:italic;}
 
@@ -419,7 +413,7 @@ mono{font-family:'IBM Plex Mono',monospace;}
     <div class="tb-date" id="todayDisplay"></div>
     <div class="tb-right">
       <div class="u-av">KK</div>
-      <div class="u-name"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="6308082313080a0d101611020d00064d0411">[email&#160;protected]</a></div>
+      <div class="u-name">kk@pkinsurance.gr</div>
     </div>
   </div>
   <div class="search-bar">
@@ -576,7 +570,7 @@ mono{font-family:'IBM Plex Mono',monospace;}
 </div>
 <div class="toast" id="toast"></div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 // ════════════════════════════════════════════════════
 // REAL DATE
 // ════════════════════════════════════════════════════
@@ -727,7 +721,7 @@ var LIST_SCHEMAS = {
     displayName: 'PK_Policies',
     columns: [
       {name:'Insurer',text:{}},{name:'Branch',text:{}},{name:'Policy',text:{}},
-      {name:'Plate',text:{}},{name:'Address',text:{}},{name:'Parent',text:{}},{name:'Email',text:{}},
+      {name:'Plate',text:{}},{name:'Parent',text:{}},{name:'Email',text:{}},
       {name:'Phone',text:{}},{name:'KIP',text:{}},{name:'Note',text:{}},
       {name:'Expiry',dateTime:{format:'dateOnly'}},{name:'Month',text:{}},
       {name:'Premium',number:{decimalPlaces:'two'}},
@@ -928,15 +922,14 @@ function itemToRecord(item) {
     sent: f.Sent ? 'YES' : 'NO',
     note: f.Note || '',
     isProposal: f.Is_Proposal || false,
-    hasSO: !!f.Has_SO,
+    hasSO: f.Has_SO || false,
     snoozeUntil: isoToDisplay(f.Snooze_Until) || null,
-    snoozeActive: !!f.Snooze_Active,
+    snoozeActive: f.Snooze_Active || false,
     snoozeNote: '',
     closeReason: f.Close_Reason || '',
     source: f.Source || '',
     last: f.Last_Action || '—',
-    address: f.Address || '',
-    sos: false, hold: '', credit: false, soHistory: !!f.Has_SO,
+    sos: false, hold: '', credit: false, soHistory: f.Has_SO || false,
     promise: '', clientType: 'personal', isOD: false, code: f.KIP || ''
   };
 }
@@ -1073,8 +1066,8 @@ async function graphCreatePolicy(r) {
       fields: {
         Title: r.client || '',
         Insurer: r.insurer || '', Branch: r.branch || '', Policy: r.policy || '',
-        Plate: r.plate || '', Address: r.address || '', Parent: r.parent || '', Email: r.email || '',
-        Phone: r.phone || '', KIP: r.kip || r.code || '', Note: r.note || '',
+        Plate: r.plate || '', Parent: r.parent || '', Email: r.email || '',
+        Phone: r.phone || '', KIP: r.kip || '', Note: r.note || '',
         Expiry: r.expiry ? displayToISO(r.expiry) : null,
         Month: r.month || currentMonth, Premium: r.premNum || 0,
         Payment_Status: r.payment || 'UNPAID', Sent: r.sent === 'YES',
@@ -1222,62 +1215,24 @@ function jumpToRaw(id){
 }
 
 // ════════════════════════════════════════════════════
-// BUCKET HELPERS — Holiday / SO Info
-// ════════════════════════════════════════════════════
-var GR_HOLIDAYS_FIXED=['01-01','01-06','03-25','05-01','08-15','10-28','12-25','12-26'];
-function isWeekendOrHoliday(dateStr){
-  if(!dateStr||dateStr==='—')return false;
-  var p=dateStr.split('/');if(p.length<3)return false;
-  var d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
-  if(isNaN(d.getTime()))return false;
-  var dow=d.getDay();
-  if(dow===0||dow===6)return true; // Sun or Sat
-  var mmdd=String(parseInt(p[1])).padStart(2,'0')+'-'+String(parseInt(p[0])).padStart(2,'0');
-  return GR_HOLIDAYS_FIXED.indexOf(mmdd)>=0;
-}
-function soInfoMailSent(r){
-  return actLog.some(function(e){
-    return (e.policy&&r.policy&&e.policy===r.policy||e.client===r.client)&&e.type==='so_info';
-  });
-}
-
-// ════════════════════════════════════════════════════
 // QUEUE BUCKETS
 // ════════════════════════════════════════════════════
 var bktCfg=[
-  // ── BUCKET 1 — SOS / Broken Promise ──────────────────
   {id:'sos',cls:'sos',label:'&#128680; BUCKET 1 — SOS / Broken Promise',
     fn:function(r){return(r.sos||r.hold==='CUSTOMER_PROMISE')&&isQueueEligible(r);},
     btns:function(r){return[{cls:'call',l:'&#128222; Call',a:'call'},{cls:'call',l:'&#128241; SMS',a:'sms'},{cls:'mail',l:'&#9993; Final Notice',a:'mail_final'},{cls:'paid',l:'&#10003; Πληρώθηκε',a:'paid'},{cls:'cncl',l:'&#10006; Ακύρωση',a:'cancel'},{cls:'nore',l:'&#128123; Δεν απαντά',a:'noresp'}];}},
-  // ── BUCKET 2 — Near Expiry Unpaid (≤7 ημέρες) ───────
-  {id:'warn',cls:'warn',label:'&#9888; BUCKET 2 — Near Expiry Unpaid (&#8804;7 ημέρες)',
-    fn:function(r){var d=daysDiff(r.expiry);return!r.sos&&r.payment==='UNPAID'&&r.sent!=='YES'&&d<=7&&!r.hold&&isQueueEligible(r);},
+  {id:'warn',cls:'warn',label:'&#9888; BUCKET 2 — Near Expiry Unpaid',
+    fn:function(r){var d=daysDiff(r.expiry);return!r.sos&&r.payment==='UNPAID'&&d<=7&&!r.hold&&isQueueEligible(r);},
     btns:function(r){return[{cls:'mail',l:'&#9993; Mail 7d',a:'mail_7'},{cls:'call',l:'&#128222; Call',a:'call'},{cls:'call',l:'&#128241; SMS',a:'sms'},{cls:'paid',l:'&#10003; Πληρώθηκε',a:'paid'},{cls:'cncl',l:'&#10006;',a:'cancel'},{cls:'repl',l:'&#128260; Αλλού',a:'replaced'},{cls:'nore',l:'&#128123;',a:'noresp'}];}},
-  // ── BUCKET 3 — PAID TO INSURER PENDING ──────────────
-  {id:'pend',cls:'pend',label:'&#9203; BUCKET 3 — PAID TO INSURER PENDING — Επαλήθευση Portal',
+  {id:'pend',cls:'pend',label:'&#9203; BUCKET 3 — Paid Pending Επαλήθευση',
     fn:function(r){return r.payment==='PAID_PENDING'&&isQueueEligible(r);},
-    btns:function(r){return[{cls:'chk',l:'&#128269; INSURER Portal OK',a:'confirm_paid'},{cls:'mail',l:'&#9993; Υπενθύμιση',a:'mail_reminder'}];}},
-  // ── BUCKET 4 — VIP: Εστάλη Συμβόλαιο — Εκκρεμεί Πληρωμή ──
-  {id:'vip',cls:'warn',label:'&#9888; BUCKET 4 — &#128196; Εστάλη Ασφαλιστήριο — Εκκρεμεί Πληρωμή (VIP)',
-    fn:function(r){return r.sent==='YES'&&r.payment==='UNPAID'&&!closedIds[r.id];},
-    btns:function(r){return[{cls:'call',l:'&#128222; Call',a:'call'},{cls:'call',l:'&#128241; SMS',a:'sms'},{cls:'paid',l:'&#10003; Πληρώθηκε',a:'paid'},{cls:'nrn',l:'&#128683; Δεν ανανεώνει',a:'norenewal'},{cls:'nore',l:'&#128123;',a:'noresp'}];}},
-  // ── BUCKET 5 — Πληρώθηκε — Στείλε Συμβόλαιο ─────────
-  {id:'sent',cls:'sent',label:'&#10003; BUCKET 5 — Πληρώθηκε — Στείλε Συμβόλαιο',
+    btns:function(r){return[{cls:'chk',l:'&#128269; Portal OK',a:'confirm_paid'},{cls:'mail',l:'&#9993; Υπενθύμιση',a:'mail_reminder'}];}},
+  {id:'sent',cls:'sent',label:'&#10003; BUCKET 4 — Πληρώθηκε — Στείλε Συμβόλαιο',
     fn:function(r){return r.payment==='PAID'&&r.sent==='NO'&&!closedIds[r.id];},
     btns:function(r){return[{cls:'send',l:'&#128196; Στείλε Συμβόλαιο',a:'send_policy'}];}},
-  // ── BUCKET 7 — Notices Due (30d / 15d / 7d) ──────────
-  {id:'ntc',cls:'ntc',label:'&#9993; BUCKET 7 — Notices Due (30d / 15d / 7d)',
-    fn:function(r){var d=daysDiff(r.expiry);return!r.sos&&!r.hold&&r.payment==='UNPAID'&&r.sent!=='YES'&&!r.hasSO&&d>7&&d<=45&&isQueueEligible(r);},
+  {id:'ntc',cls:'ntc',label:'&#9993; BUCKET 5 — Notices Due',
+    fn:function(r){var d=daysDiff(r.expiry);return!r.sos&&!r.hold&&r.payment==='UNPAID'&&d>7&&d<=45&&isQueueEligible(r);},
     btns:function(r){var d=daysDiff(r.expiry);var lbl=d<=15?'15d':d<=30?'30d':'30d+';return[{cls:'mail',l:'&#9993; Mail '+lbl,a:'mail_notice'},{cls:'call',l:'&#128241; SMS',a:'sms'},{cls:'paid',l:'&#10003; Πληρώθηκε',a:'paid'},{cls:'nrn',l:'&#128683; Δεν ανανεώνει',a:'norenewal'}];}},
-  // ── BUCKET 8 — Standing Orders Info Mail ─────────────
-  {id:'so8',cls:'ntc',label:'&#8505; BUCKET 8 — Standing Orders — Info Mail 30 ημερών',
-    fn:function(r){var d=daysDiff(r.expiry);return r.hasSO&&r.payment==='UNPAID'&&d>0&&d<=35&&!closedIds[r.id]&&!soInfoMailSent(r);},
-    btns:function(r){return[{cls:'mail',l:'&#8505; Στείλε Info Mail (Πάγια)',a:'so_info_mail'}];}},
-  // ── BUCKET 9 — Holiday / Weekend Risk ────────────────
-  {id:'hol',cls:'pend',label:'&#128197; BUCKET 9 — Holiday / Weekend Risk',
-    fn:function(r){var d=daysDiff(r.expiry);return r.payment==='UNPAID'&&d>=0&&d<=35&&isWeekendOrHoliday(r.expiry)&&!closedIds[r.id]&&!isSnoozed(r);},
-    btns:function(r){return[{cls:'mail',l:'&#9993; Εκτακτο Mail',a:'mail_notice'},{cls:'call',l:'&#128222; Call',a:'call'},{cls:'paid',l:'&#10003; Πληρώθηκε',a:'paid'}];}},
-  // ── SNOOZED ───────────────────────────────────────────
   {id:'snz',cls:'snz',label:'&#128336; SNOOZED — Follow-up Προγραμματισμένο',
     fn:function(r){return!closedIds[r.id]&&isSnoozed(r);},
     btns:function(r){return[{cls:'call',l:'&#128222; Call',a:'call'},{cls:'call',l:'&#128241; SMS',a:'sms'},{cls:'mail',l:'&#9993; Mail',a:'mail_notice'},{cls:'snz',l:'&#128336; Νέο Snooze',a:'snooze'}];}}
@@ -1341,12 +1296,11 @@ function buildCard(r,b){
       notePill+snzTxt+
     '</div>'+
     '<div class="ac-ins"><div class="ins-n">'+r.insurer+'</div><div class="ins-b">'+r.branch+'</div></div>'+
-    '<div class="ac-amt"><div class="amt-v"><span class="cpw" onclick="editPremium('+r.id+')" title="Κλικ για επεξεργασία ασφαλίστρου"><span id="prem-v-'+r.id+'">'+r.premium+'€</span><span class="ci">✏️</span></span></div>'+(r.code?'<div>'+cpBtn(r.code,'ΚΗΠ')+'</div>':'<div><span style="font-size:9px;color:var(--text3);cursor:pointer" onclick="editKip('+r.id+')" title="Προσθήκη ΚΗΠ">+ ΚΗΠ</span></div>')+creditFlag+'</div>'+
+    '<div class="ac-amt"><div class="amt-v"><span class="cpw" onclick="editPremium('+r.id+')" title="Κλικ για επεξεργασία ασφαλίστρου"><span id="prem-v-'+r.id+'">'+r.premium+'€</span><span class="ci">✏️</span></span></div>'+(r.code?'<div>'+cpBtn(r.code,'ΚΗΠ')+'</div>':'')+creditFlag+'</div>'+
     '<div class="ac-info">'+
       '<div class="bdg-row">'+pBadge+eBadge+'</div>'+
       '<div class="ef" onclick="editField('+r.id+',\'email\')">&#9993; <span id="efv-e-'+r.id+'">'+(r.email||'—')+'</span></div>'+
       '<div class="ef" onclick="editField('+r.id+',\'phone\')">&#128222; <span id="efv-p-'+r.id+'">'+(r.phone||'—')+'</span></div>'+
-      (r.address?'<div style="font-size:10px;color:var(--text2);padding:1px 3px">📍 '+r.address+'</div>':'')+
       '<div class="last-act">Τελ: '+(r.last||'—')+'</div>'+
     '</div>'+
     '<div class="ac-act">'+btns+'<button class="btn tmpl" onclick="openTemplate('+r.id+')">&#128203; Template</button><button class="btn trail" onclick="openTrail('+r.id+')">&#128203; Trail</button><button class="btn snz" onclick="doAction('+r.id+',\'snooze\')">&#128336;</button></div>';
@@ -1388,31 +1342,8 @@ function editPremium(id){
   inp.onblur=save;
   inp.onkeydown=function(e){if(e.key==='Enter')save();if(e.key==='Escape'){parent.innerHTML='<span class="cpw" onclick="editPremium('+id+')" title="Κλικ για επεξεργασία"><span id="prem-v-'+id+'">'+r.premium+'€</span><span class="ci">✏️</span></span>';}};
 }
-function editKip(id){
-  var r=records.find(function(x){return x.id==id;});if(!r)return;
-  var orig=r.code||r.kip||'';
-  var html='<div style="padding:16px"><div style="font-weight:700;margin-bottom:10px">ΚΗΠ — '+r.client+'</div>'+
-    '<input id="kip-inp-'+id+'" style="width:100%;padding:6px 10px;border:1px solid var(--border2);border-radius:5px;font-size:13px;font-family:IBM Plex Mono,monospace" value="'+orig+'" placeholder="Αρ. ΚΗΠ">'+
-    '</div>';
-  document.getElementById('mTitle').textContent='Επεξεργασία ΚΗΠ';
-  document.getElementById('mBody').innerHTML=html;
-  document.getElementById('mFoot').innerHTML=
-    '<button class="mbtn secondary" onclick="closeModal()">Ακύρωση</button>'+
-    '<button class="mbtn primary" onclick="saveKip('+id+')">💾 Αποθήκευση</button>';
-  document.getElementById('modalOverlay').classList.add('open');
-  setTimeout(function(){var el=document.getElementById('kip-inp-'+id);if(el){el.focus();el.select();}},100);
-}
-function saveKip(id){
-  var r=records.find(function(x){return x.id==id;});if(!r)return;
-  var inp=document.getElementById('kip-inp-'+id);if(!inp)return;
-  var nv=inp.value.trim();
-  r.code=nv;r.kip=nv;
-  graphPatchPolicy(r,{KIP:nv});
-  closeModal();
-  renderQueue();renderMonthly();
-  showToast('ΚΗΠ αποθηκεύτηκε: '+nv,'#166534');
-}
 var tmplNames=[
+  '1. Premium Payment Notice (Αγγλικά)',
   '2. Ειδοποίηση Ασφαλίστρων (Ελληνικά — 1 συμβόλαιο)',
   '3. Ειδοποίηση Ασφαλίστρων ΟΔ (Ελληνικά — 2 ΚΗΠ)',
   '4. Ειδοποίηση Ασφαλίστρων Εταιρεία/Πίνακας',
@@ -1653,12 +1584,6 @@ function doAction(id,act){
   if(modals.indexOf(act)>=0){
     if(act==='snooze'){openSnoozeModal(r);return;}
     openActionModal(r,act);return;
-  }
-  if(act==='so_info_mail'){
-    addLog(r,'so_info','SO Info Mail','Ενημέρωση πάγιας εντολής (30d) → '+r.email,r.premium+'€',false);
-    r.last='SO Info Mail — σήμερα';
-    showToast('\u2139\ufe0f SO Info Mail — '+r.client.split(' ')[0]+' (πάγια εντολή)','#0f766e');
-    renderQueue();return;
   }
   var mlMap={mail_7:'7d',mail_notice:daysDiff(r.expiry)<=15?'15d':'30d',mail_final:'Final',mail_reminder:'Υπενθύμιση'};
   var ml=mlMap[act]||act;
