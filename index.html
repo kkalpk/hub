@@ -2069,9 +2069,7 @@ function importIView(input) {
           rawData.find(function(x){return x.policy && x.policy===policy;}) ||
           records.find(function(x){return x.policy && x.policy===policy;})
         ) : null;
-        var status = dupMatch ? 'dup' : 'new';
-        var dupNote = dupMatch ? ('⚠️ Διπλό: βρέθηκε ήδη συμβόλαιο ' + policy + (dupMatch.client?' ('+dupMatch.client+')':'')) : '';
-        if (dupMatch) dupes++;
+        if (dupMatch) { dupes++; continue; } // skip entirely
 
         var isMotor = branch==='Αυτοκινήτου'||branch==='Οδικής Βοήθειας';
         var isFire  = branch==='Πυρός';
