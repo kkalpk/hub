@@ -442,10 +442,16 @@ mono{font-family:'IBM Plex Mono',monospace;}
   </div>
   <div class="sum-bar" id="sumBar">
     <div class="sp red" onclick="scrollB('sos')">&#128680; SOS</div>
+    <div class="sp red" onclick="scrollB('sos')">&#128680; SOS</div>
     <div class="sp org" onclick="scrollB('warn')">&#9888; Near Expiry</div>
-    <div class="sp yel" onclick="scrollB('pend')">&#9203; Pending</div>
+    <div class="sp yel" onclick="scrollB('pend')">&#9203; INSURER Pending</div>
+    <div class="sp org" onclick="scrollB('vip')">&#128196; VIP Unpaid</div>
     <div class="sp grn" onclick="scrollB('sent')">&#10003; Send Policy</div>
-    <div class="sp blu" onclick="scrollB('ntc')">&#9993; Notices</div>
+    <div class="sp blu" onclick="scrollB('ntc30')">&#9993; 30d</div>
+    <div class="sp blu" onclick="scrollB('ntc15')">&#9993; 15d</div>
+    <div class="sp blu" onclick="scrollB('ntc7')">&#9993; 7d</div>
+    <div class="sp" style="background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-light)" onclick="scrollB('so8')">&#8505; Πάγιες</div>
+    <div class="sp yel" onclick="scrollB('hol')">&#128197; Αργίες</div>
     <div class="sp" style="background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-light)" onclick="scrollB('snz')">&#128336; Snoozed</div>
     <div class="prog-wrap"><span id="progTxt">0/0</span><div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div></div>
   </div>
@@ -1197,7 +1203,7 @@ function jumpTo(id){
   // Try queue first, then monthly
   switchTab('queue');
   setTimeout(function(){
-    var el=document.getElementById('card-'+id);
+    var el=document.querySelector('[id^="card-"][id$="-'+id+'"]');
     if(el){
       el.scrollIntoView({behavior:'smooth',block:'center'});
       el.classList.add('hl');setTimeout(function(){el.classList.remove('hl');},2000);
@@ -1265,18 +1271,28 @@ var bktCfg=[
   {id:'sent',cls:'sent',label:'&#10003; BUCKET 5 — Πληρώθηκε — Στείλε Συμβόλαιο',
     fn:function(r){return r.payment==='PAID'&&r.sent==='NO'&&!closedIds[r.id];},
     btns:function(r){return[{cls:'send',l:'&#128196; Στείλε Συμβόλαιο',a:'send_policy'}];}},
-  // ── BUCKET 7 — Notices Due (30d / 15d / 7d) ──────────
-  {id:'ntc',cls:'ntc',label:'&#9993; BUCKET 7 — Notices Due (30d / 15d / 7d)',
-    fn:function(r){var d=daysDiff(r.expiry);return!r.sos&&!r.hold&&r.payment==='UNPAID'&&r.sent!=='YES'&&d>7&&d<=45&&isQueueEligible(r);},
-    btns:function(r){var d=daysDiff(r.expiry);var lbl=d<=15?'15d':d<=30?'30d':'30d+';return[{cls:'mail',l:'&#9993; Mail '+lbl,a:'mail_notice'},{cls:'call',l:'&#128241; SMS',a:'sms'},{cls:'paid',l:'&#10003; Πληρώθηκε',a:'paid'},{cls:'nrn',l:'&#128683; Δεν ανανεώνει',a:'norenewal'}];}},
+  // ── BUCKET 7a — Notices 30d ───────────────────────────
+  {id:'ntc30',cls:'ntc',label:'&#9993; BUCKET 7a — Mail 30d (16–45 ημέρες)',
+    fn:function(r){var d=daysDiff(r.expiry);return!r.sos&&!r.hold&&r.payment==='UNPAID'&&r.sent!=='YES'&&d>15&&d<=45&&isQueueEligible(r);},
+    btns:function(r){return[{cls:'mail',l:'&#9993; Mail 30d',a:'mail_notice'},{cls:'call',l:'&#128241; SMS',a:'sms'},{cls:'paid',l:'&#10003; Πληρώθηκε',a:'paid'},{cls:'nrn',l:'&#128683; Δεν ανανεώνει',a:'norenewal'}];}},
+  // ── BUCKET 7b — Notices 15d ───────────────────────────
+  {id:'ntc15',cls:'ntc',label:'&#9993; BUCKET 7b — Mail 15d (8–15 ημέρες)',
+    fn:function(r){var d=daysDiff(r.expiry);return!r.sos&&!r.hold&&r.payment==='UNPAID'&&r.sent!=='YES'&&d>7&&d<=15&&isQueueEligible(r);},
+    btns:function(r){return[{cls:'mail',l:'&#9993; Mail 15d',a:'mail_notice'},{cls:'call',l:'&#128241; SMS',a:'sms'},{cls:'paid',l:'&#10003; Πληρώθηκε',a:'paid'},{cls:'nrn',l:'&#128683; Δεν ανανεώνει',a:'norenewal'}];}},
+  // ── BUCKET 7c — Notices 7d ────────────────────────────
+  {id:'ntc7',cls:'ntc',label:'&#9993; BUCKET 7c — Mail 7d (0–7 ημέρες)',
+    fn:function(r){var d=daysDiff(r.expiry);return!r.sos&&!r.hold&&r.payment==='UNPAID'&&r.sent!=='YES'&&d>=0&&d<=7&&isQueueEligible(r);},
+    btns:function(r){return[{cls:'mail',l:'&#9993; Mail 7d',a:'mail_7'},{cls:'call',l:'&#128222; Call',a:'call'},{cls:'call',l:'&#128241; SMS',a:'sms'},{cls:'paid',l:'&#10003; Πληρώθηκε',a:'paid'},{cls:'cncl',l:'&#10006;',a:'cancel'},{cls:'nore',l:'&#128123;',a:'noresp'}];}},
   // ── BUCKET 8 — Standing Orders Info Mail ─────────────
   {id:'so8',cls:'ntc',label:'&#8505; BUCKET 8 — Standing Orders — Info Mail 30 ημερών',
     fn:function(r){var d=daysDiff(r.expiry);return r.hasSO&&r.payment==='UNPAID'&&d>0&&d<=35&&!closedIds[r.id]&&!soInfoMailSent(r);},
     btns:function(r){return[{cls:'mail',l:'&#8505; Στείλε Info Mail (Πάγια)',a:'so_info_mail'}];}},
   // ── BUCKET 9 — Holiday / Weekend Risk ────────────────
+  // Μένει μέχρι PAID confirmed, CANCELLED, NOT_RENEWED, REPLACED, NO_RESPONSE
+  // PAID_PENDING ΔΕΝ το αφαιρεί
   {id:'hol',cls:'pend',label:'&#128197; BUCKET 9 — Holiday / Weekend Risk',
-    fn:function(r){var d=daysDiff(r.expiry);return r.payment==='UNPAID'&&d>=0&&d<=35&&isWeekendOrHoliday(r.expiry)&&!closedIds[r.id]&&!isSnoozed(r);},
-    btns:function(r){return[{cls:'mail',l:'&#9993; Εκτακτο Mail',a:'mail_notice'},{cls:'call',l:'&#128222; Call',a:'call'},{cls:'paid',l:'&#10003; Πληρώθηκε',a:'paid'}];}},
+    fn:function(r){var d=daysDiff(r.expiry);return(r.payment==='UNPAID'||r.payment==='PAID_PENDING')&&d>=0&&d<=35&&isWeekendOrHoliday(r.expiry)&&!closedIds[r.id]&&!isSnoozed(r);},
+    btns:function(r){return[{cls:'mail',l:'&#9993; Εκτακτο Mail',a:'mail_notice'},{cls:'call',l:'&#128222; Call',a:'call'},{cls:'chk',l:'&#128269; INSURER OK',a:'confirm_paid'},{cls:'paid',l:'&#10003; Πληρώθηκε',a:'paid'}];}},
   // ── SNOOZED ───────────────────────────────────────────
   {id:'snz',cls:'snz',label:'&#128336; SNOOZED — Follow-up Προγραμματισμένο',
     fn:function(r){return!closedIds[r.id]&&isSnoozed(r);},
@@ -1318,14 +1334,15 @@ function renderQueue(){
 }
 
 function buildCard(r,b){
-  var card=document.createElement('div');card.className='acard';card.id='card-'+r.id;
+  var card=document.createElement('div');card.className='acard';card.id='card-'+b.id+'-'+r.id;
   var days=daysDiff(r.expiry);
   var ec=isSnoozed(r)?'exp-snz':expClass(days);
   var btns=b.btns(r).map(function(bt){return '<button class="btn '+bt.cls+'" onclick="doAction('+r.id+',\''+bt.a+'\')">'+bt.l+'</button>';}).join('');
   var propPill=r.isProposal?'<span class="pill prop">&#9888; ΠΡΟΤΑΣΗ</span>':((!r.policy||r.policy==='')&&!r.isProposal?'<span class="pill" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1">&#128203; ΑΙΤΗΣΗ</span>':'');
-  var soPill=r.soHistory?'<span class="pill so">&#128309; ΠΕ</span>':'';
+  var soPill=r.soHistory?'<span class="pill so" title="Πάγια Εντολή">&#128309; ΠΕ</span>':'';
   var odPill=r.isOD?'<span class="pill od">&#128260; ΟΔ</span>':'';
   var snzPill=isSnoozed(r)?'<span class="pill snz">&#128336; '+r.snoozeUntil+'</span>':'';
+  var holPill=isWeekendOrHoliday(r.expiry)?'<span class="pill" style="background:#fefce8;color:#713f12;border:1px solid #fde68a" title="Αργία / Σαββατοκύριακο">&#128197; Αργία</span>':'';
   var cnt=sameClientCount(r.client,r.month);
   var mpPill=cnt>1?'<span class="pill mp" onclick="jumpToMonthly('+r.id+')">&#128203; '+cnt+'</span>':'';
   var notePill=r.note?'<div class="note-pill" onclick="jumpToMonthly('+r.id+')">&#128172; Σχόλιο</div>':'';
@@ -1337,7 +1354,7 @@ function buildCard(r,b){
     '<div class="ac-exp"><div class="'+ec+'"><div class="exp-date">'+r.expiry+'</div><div class="exp-days">'+expTxt(days)+'</div></div></div>'+
     '<div class="ac-cli">'+
       '<div class="cli-n" title="'+r.client+'">'+r.client+'</div>'+
-      '<div class="cli-sub">'+cpBtn(r.policy||'—','Αρ.Συμβολαίου')+(r.plate?' · '+cpBtn(r.plate,'Πινακίδα'):'')+soPill+odPill+mpPill+propPill+snzPill+'</div>'+
+      '<div class="cli-sub">'+cpBtn(r.policy||'—','Αρ.Συμβολαίου')+(r.plate?' · '+cpBtn(r.plate,'Πινακίδα'):'')+soPill+odPill+mpPill+propPill+snzPill+holPill+'</div>'+
       notePill+snzTxt+
     '</div>'+
     '<div class="ac-ins"><div class="ins-n">'+r.insurer+'</div><div class="ins-b">'+r.branch+'</div></div>'+
@@ -1349,7 +1366,7 @@ function buildCard(r,b){
       (r.address?'<div style="font-size:10px;color:var(--text2);padding:1px 3px">📍 '+r.address+'</div>':'')+
       '<div class="last-act">Τελ: '+(r.last||'—')+'</div>'+
     '</div>'+
-    '<div class="ac-act">'+btns+'<button class="btn tmpl" onclick="openTemplate('+r.id+')">&#128203; Template</button><button class="btn trail" onclick="openTrail('+r.id+')">&#128203; Trail</button><button class="btn snz" onclick="doAction('+r.id+',\'snooze\')">&#128336;</button></div>';
+    '<div class="ac-act">'+btns+'<button class="btn tmpl" onclick="openTemplate('+r.id+')" title="Επιλογή Template">&#128203; Template</button><button class="btn trail" onclick="openTrail('+r.id+')" title="Ιστορικό">&#128203; Trail</button><button class="btn snz" onclick="doAction('+r.id+',\'snooze\')" title="Snooze">&#128336;</button></div>';
   return card;
 }
 
