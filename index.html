@@ -957,7 +957,7 @@ async function fetchAllData() {
     var polResp = await graphCall('GET', listPath('PK_Policies') + '/items?$expand=fields&$top=5000');
     records = (polResp.value || []).map(itemToRecord);
     setLoading('Φόρτωση Activity Log...', 72);
-    var logResp = await graphCall('GET', listPath('PK_ActivityLog') + '/items?$expand=fields&$top=5000&$orderby=fields/Timestamp desc');
+    var logResp = await graphCall('GET', listPath('PK_ActivityLog') + '/items?$expand=fields&$top=5000');
     actLog = (logResp.value || []).map(logItemToLog);
     setLoading('Φόρτωση Εκκρεμών...', 82);
     var pendResp = await graphCall('GET', listPath('PK_PendingReg') + '/items?$expand=fields&$top=2000');
