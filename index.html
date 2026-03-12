@@ -623,8 +623,8 @@ var MSAL_CONFIG = {
 var GRAPH_SCOPES = ['https://graph.microsoft.com/Sites.ReadWrite.All','https://graph.microsoft.com/User.Read'];
 var msalInstance, currentUser = {name:'', email:''};
 var graphSiteId = null, graphListIds = {};
-// Known personal site ID (from diagnostic run)
-var PERSONAL_SITE_ID = 'pkinsurancegr-my.sharepoint.com,9db860bc-daed-43fa-8331-cb705c58b4d8,768afa37-60fc-49fc-9df1-a38119031395';
+// Main SharePoint site (root)
+var PERSONAL_SITE_ID = 'pkinsurancegr.sharepoint.com';
 
 function initMSAL() {
   msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
@@ -760,7 +760,7 @@ async function ensureList(listName) {
   var stored = localStorage.getItem('pk_list_' + listName);
   if (stored) {
     try {
-      var check = await graphCall('GET', '/sites/' + PERSONAL_SITE_ID + '/lists/' + stored + '?$select=id,displayName');
+      var check = await graphCall('GET', '/sites/' + graphSiteId + '/lists/' + stored + '?$select=id,displayName');
       if (check.id) {
         graphListIds[listName] = stored;
         console.log('✅ List from cache:', listName, '=', stored);
@@ -771,7 +771,7 @@ async function ensureList(listName) {
 
   // Try to find list by name on the site
   try {
-    var allLists = await graphCall('GET', '/sites/' + PERSONAL_SITE_ID + '/lists?$select=id,displayName&$top=200');
+    var allLists = await graphCall('GET', '/sites/' + graphSiteId + '/lists?$select=id,displayName&$top=200');
     var found = (allLists.value || []).find(function(l){ return l.displayName === listName; });
     if (found) {
       graphListIds[listName] = found.id;
@@ -784,7 +784,7 @@ async function ensureList(listName) {
   // Create the list
   console.log('Creating list:', listName);
   var schema = LIST_SCHEMAS[listName];
-  var created = await graphCall('POST', '/sites/' + PERSONAL_SITE_ID + '/lists', {
+  var created = await graphCall('POST', '/sites/' + graphSiteId + '/lists', {
     displayName: schema.displayName,
     list: { template: 'genericList' }
   });
@@ -801,7 +801,7 @@ async function ensureList(listName) {
     if (col.boolean) colBody.boolean = col.boolean;
     if (col.dateTime) colBody.dateTime = col.dateTime;
     try {
-      await graphCall('POST', '/sites/' + PERSONAL_SITE_ID + '/lists/' + created.id + '/columns', colBody);
+      await graphCall('POST', '/sites/' + graphSiteId + '/lists/' + created.id + '/columns', colBody);
     } catch(e) { console.warn('Column', col.name, 'failed:', e.message); }
   }
   console.log('✅ Columns created for:', listName);
@@ -815,11 +815,20 @@ function setLoading(msg, pct) {
 }
 
 async function discoverSiteAndLists() {
-  setLoading('Σύνδεση με Microsoft Lists...', 30);
-  graphSiteId = PERSONAL_SITE_ID;
+  setLoading('Σύνδεση με SharePoint...', 30);
+
+  // Resolve root site ID
+  try {
+    var siteResp = await graphCall('GET', '/sites/' + PERSONAL_SITE_ID + '?$select=id');
+    graphSiteId = siteResp.id;
+    console.log('✅ Site ID:', graphSiteId);
+  } catch(e) {
+    throw new Error('Αδυναμία σύνδεσης με SharePoint: ' + e.message);
+  }
+
   var names = ['PK_Policies','PK_ActivityLog','PK_PendingReg','PK_SORegistry'];
   for (var i = 0; i < names.length; i++) {
-    setLoading('Έλεγχος ' + names[i] + '...', 30 + i * 6);
+    setLoading('Έλεγχος ' + names[i] + '...', 35 + i * 5);
     await ensureList(names[i]);
   }
   console.log('✅ All lists ready:', graphListIds);
