@@ -2091,28 +2091,27 @@ function importIView(input) {
         imported++;
       }
 
-      // Write to SharePoint in batches
+      // Write to SharePoint
       input.value = '';
       var saved = 0;
-      showToast('Αποθήκευση ' + newRaw.length + ' εγγραφών στο SharePoint...', '#6d28d9');
-      var batchSize = 5;
-      async function saveBatch(idx) {
-        if (idx >= newRaw.length) {
-          rawData = rawData.concat(newRaw);
-          renderRaw(); updateBadges();
-          showToast('✅ Import: ' + newRaw.length + ' εγγραφές αποθηκεύτηκαν' + (dupes?' ('+dupes+' διπλότυπα παραλείφθηκαν)':''), '#166534');
-          return;
+      showToast('Αποθήκευση ' + newRaw.length + ' εγγραφών...', '#6d28d9');
+      document.getElementById('loadingOverlay').style.display = 'flex';
+
+      (async function() {
+        for(var b = 0; b < newRaw.length; b += 5) {
+          var batch = newRaw.slice(b, b + 5);
+          await Promise.all(batch.map(async function(r) {
+            var resp = await graphCreatePolicy(r);
+            if(resp && resp.id){ r.graphId = resp.id; r.id = resp.id; }
+            saved++;
+          }));
+          setLoading('Αποθήκευση... ' + saved + '/' + newRaw.length, 60 + Math.round(saved/newRaw.length*35));
         }
-        var batch = newRaw.slice(idx, idx + batchSize);
-        await Promise.all(batch.map(async function(r) {
-          var resp = await graphCreatePolicy(r);
-          if (resp && resp.id) { r.graphId = resp.id; r.id = resp.id; }
-          saved++;
-        }));
-        setLoading('Αποθήκευση... ' + saved + '/' + newRaw.length, 60 + Math.round(saved/newRaw.length*35));
-        await saveBatch(idx + batchSize);
-      }
-      await saveBatch(0);
+        rawData = rawData.concat(newRaw);
+        document.getElementById('loadingOverlay').style.display = 'none';
+        renderRaw(); updateBadges();
+        showToast('✅ Import: ' + newRaw.length + ' εγγραφές αποθηκεύτηκαν' + (dupes?' ('+dupes+' διπλότυπα παραλείφθηκαν)':''), '#166534');
+      })();
     } catch(err) {
       showToast('Σφάλμα import: '+err.message,'#b91c1c');
       console.error(err);
