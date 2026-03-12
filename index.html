@@ -843,6 +843,7 @@ async function setupColumns() {
   showToast('✅ Setup ολοκληρώθηκε: '+total+' στήλες δημιουργήθηκαν'+(failed?' ('+failed+' απέτυχαν)':''),'#166534');
 }
 
+function setLoading(msg, pct) {
   var ov = document.getElementById('loadingOverlay');
   if (ov) ov.style.display = 'flex';
   var msgEl = document.getElementById('loadingMsg'); if(msgEl) msgEl.textContent = msg;
