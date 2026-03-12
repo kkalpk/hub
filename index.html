@@ -969,7 +969,7 @@ async function fetchAllData() {
     setLoading('Έτοιμο!', 100);
     setTimeout(function() {
       document.getElementById('loadingOverlay').style.display = 'none';
-      renderQueue(); renderLog(); renderPend(); renderKPI(); renderSO(); updateBadges();
+      renderQueue(); renderLog(); renderPend(); renderKPI(); renderSORegistry(); updateBadges();
     }, 400);
   } catch(e) {
     document.getElementById('loadingOverlay').style.display = 'none';
