@@ -320,9 +320,9 @@ mono{font-family:'IBM Plex Mono',monospace;}
 /* ── RAW ── */
 .raw-info{background:var(--purple-bg);border:1px solid var(--purple-light);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--purple);margin-bottom:12px;}
 .raw-tbl{background:#fff;border-radius:6px;overflow:visible;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
-.raw-thead{display:grid;grid-template-columns:28px 140px 120px 100px 65px 80px 85px 1fr;background:var(--bg);padding:6px 0;border-bottom:1px solid var(--border2);position:sticky;top:0;z-index:10;box-shadow:0 2px 4px rgba(0,0,0,0.07);}
+.raw-thead{display:grid;grid-template-columns:28px 140px 120px 100px 65px 80px 85px 1fr 60px;background:var(--bg);padding:6px 0;border-bottom:1px solid var(--border2);position:sticky;top:0;z-index:10;box-shadow:0 2px 4px rgba(0,0,0,0.07);}
 .raw-th{padding:0 8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);}
-.raw-row{display:grid;grid-template-columns:28px 140px 120px 100px 65px 80px 85px 1fr;padding:7px 0;border-bottom:1px solid var(--border);align-items:center;}
+.raw-row{display:grid;grid-template-columns:28px 140px 120px 100px 65px 80px 85px 1fr 60px;padding:7px 0;border-bottom:1px solid var(--border);align-items:center;}
 .raw-row:last-child{border:none;}
 .raw-row:hover{background:var(--bg);}
 .raw-row.nw{background:#fffde7;}
@@ -485,6 +485,7 @@ mono{font-family:'IBM Plex Mono',monospace;}
     <button class="btn mail" onclick="document.getElementById('iviewFile').click()">&#128229; Import iView</button>
     <input type="file" id="iviewFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importIView(this)">
     <button class="btn promo" onclick="promoteAll()">&#11014; Promote Όλα τα Νέα</button>
+    <button class="btn cncl" style="font-size:10px;padding:4px 10px" onclick="deleteAllDups()">&#128465; Διαγραφή Όλων Διπλών</button>
     <div style="flex:1"></div>
     <span style="font-size:11px;color:var(--text3);white-space:nowrap">Εξαγωγή — Λήξη από:</span>
     <input type="date" id="rawExFrom" class="minp" style="width:130px;padding:4px 8px;font-size:11px;background:#fff;border:1px solid var(--border2);border-radius:5px;color:var(--text1)">
@@ -502,7 +503,7 @@ mono{font-family:'IBM Plex Mono',monospace;}
     </select>
     <button class="btn chk" style="font-size:10px;padding:4px 12px" onclick="exportRawExcel()">&#128229; Export Excel</button>
   </div>
-  <div class="raw-tbl"><div class="raw-thead"><div class="raw-th">#</div><div class="raw-th">Πελάτης</div><div class="raw-th">Ασφαλιστική / Κλάδος</div><div class="raw-th">Αρ. Συμβολαίου</div><div class="raw-th">Λήξη</div><div class="raw-th">Ασφάλιστρα</div><div class="raw-th">Πηγή</div><div class="raw-th">Status</div></div><div id="rawBody"></div></div>
+  <div class="raw-tbl"><div class="raw-thead"><div class="raw-th">#</div><div class="raw-th">Πελάτης</div><div class="raw-th">Ασφαλιστική / Κλάδος</div><div class="raw-th">Αρ. Συμβολαίου</div><div class="raw-th">Λήξη</div><div class="raw-th">Ασφάλιστρα</div><div class="raw-th">Πηγή</div><div class="raw-th">Status</div><div class="raw-th">Del</div></div><div id="rawBody"></div></div>
 </div>
 <div class="page" id="page-log">
   <div class="log-filters">
@@ -1037,6 +1038,12 @@ async function graphCreatePolicy(r) {
     });
     return resp;
   } catch(e) { showToast('\u26a0\ufe0f Sync error (create): ' + e.message.substring(0,60), '#b45309'); return null; }
+}
+async function graphDeletePolicy(graphId) {
+  if (!graphListIds['PK_Policies'] || !graphId) return;
+  try {
+    await graphCall('DELETE', listPath('PK_Policies') + '/items/' + graphId);
+  } catch(e) { showToast('\u26a0\ufe0f Σφάλμα διαγραφής: ' + e.message.substring(0,60), '#b45309'); console.error(e); }
 }
 
 // ════════════════════════════════════════════════════
@@ -1844,6 +1851,7 @@ function renderRaw(){
       '<div style="padding:0 8px;font-size:11px;font-weight:700;font-family:IBM Plex Mono,monospace">'+r.premium+'€</div>'+
       '<div style="padding:0 8px"><span class="rsrc '+src[0]+'">'+src[1]+'</span></div>'+
       '<div style="padding:0 8px;display:flex;align-items:center;gap:6px">'+stL[r.status]+(r.status==='new'?'<button class="btn promo" style="font-size:9px;padding:2px 6px" onclick="promoteOne('+r.id+')">&#11014; Promote</button>':r.dupNote?'<span style="font-size:9px;color:#b45309;max-width:220px;white-space:normal">'+r.dupNote+'</span>':'')+'</div>'+
+      '<div style="padding:0 4px;text-align:center"><button class="btn cncl" style="font-size:10px;padding:2px 7px;min-width:0" onclick="deleteRawRow('+r.id+')" title="Διαγραφή εγγραφής">&#128465;</button></div>'+
     '</div>';
   }).join('');
 }
@@ -1915,6 +1923,29 @@ function promoteAll(){
     });
   });
   renderRaw();showToast('Όλα Promoted ('+news.length+')','#166534');
+}
+function deleteRawRow(id){
+  var r=rawData.find(function(x){return x.id===id;});
+  if(!r) return;
+  var msg='Διαγραφή: '+r.client+(r.policy?' ('+r.policy+')':'')+' — '+r.branch+';\nΑν έχει ήδη γίνει Promote θα διαγραφεί και από το SharePoint.';
+  if(!confirm(msg)) return;
+  // If it was promoted (has graphId in records), delete from SharePoint too
+  var promoted=records.find(function(x){return x.policy&&x.policy===r.policy&&r.policy;});
+  if(promoted && promoted.graphId){
+    graphDeletePolicy(promoted.graphId);
+    records=records.filter(function(x){return x.id!==promoted.id;});
+  }
+  rawData=rawData.filter(function(x){return x.id!==id;});
+  renderRaw();renderQueue();updateBadges();
+  showToast('Διαγράφηκε: '+r.client,'#b91c1c');
+}
+function deleteAllDups(){
+  var dups=rawData.filter(function(r){return r.status==='dup';});
+  if(!dups.length){showToast('Δεν υπάρχουν διπλότυπα στο RAW','#166534');return;}
+  if(!confirm('Διαγραφή '+dups.length+' διπλότυπων από το RAW;\n(Εγγραφές που έχουν ήδη Promote θα παραμείνουν στο SharePoint)')) return;
+  rawData=rawData.filter(function(r){return r.status!=='dup';});
+  renderRaw();updateBadges();
+  showToast('Διαγράφηκαν '+dups.length+' διπλότυπα','#b91c1c');
 }
 
 // ════════════════════════════════════════════════════
