@@ -1593,28 +1593,33 @@ function openTrail(id){
   var body=document.getElementById('trailBody');
   if(!entries.length){body.innerHTML='<div class="trail-empty">Καμία ενέργεια ακόμα για αυτό το συμβόλαιο.</div>';document.getElementById('trailOverlay').classList.add('open');return;}
   var dotIco={mail:'✉',call:'📞',sms:'📱',paid:'€',policy:'📄',cancelled:'✗',norenewal:'🚫',replaced:'🔄',noresp:'👻',bulk:'📧',snooze:'🕐',note:'💬',undo:'↩'};
-  body.innerHTML=entries.map(function(e,i){
+  // Build entries using DOM to avoid quote escaping issues
+  body.innerHTML='';
+  entries.forEach(function(e){
     var dc=e.type||'mail';
-    // Κουμπί επαναφοράς — μόνο για entries που έχουν snapshot και ΔΕΝ είναι undo entries
-    var restoreBtn='';
+    var wrap=document.createElement('div');wrap.className='trail-entry';
+    var dot=document.createElement('div');dot.className='trail-dot '+dc;dot.textContent=(dotIco[dc]||'·');
+    var info=document.createElement('div');info.className='trail-info';
+    var act=document.createElement('div');act.className='trail-action';act.textContent=e.label;
+    var det=document.createElement('div');det.className='trail-detail';det.textContent=e.detail;
+    var tim=document.createElement('div');tim.className='trail-time';
+    tim.innerHTML=e.time+' · <strong>'+e.user+'</strong>'+(e.amt?' · '+e.amt:'');
+    info.appendChild(act);info.appendChild(det);info.appendChild(tim);
+    // Κουμπί επαναφοράς — μόνο αν υπάρχει snapshot και δεν είναι undo entry
     if(e.snap&&e.type!=='undo'){
-      var snapEsc=e.snap.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-      restoreBtn='<button onclick="restoreFromTrail(''+r.id+'',this)" data-snap=\''+snapEsc+'\' style="margin-top:5px;padding:2px 9px;font-size:10px;border-radius:4px;border:1px solid #7c3aed;background:#f5f3ff;color:#7c3aed;cursor:pointer;font-family:IBM Plex Sans,sans-serif;font-weight:600">↩ Επαναφορά σε αυτή την κατάσταση</button>';
+      var btn=document.createElement('button');
+      btn.textContent='↩ Επαναφορά σε αυτή την κατάσταση';
+      btn.style.cssText='margin-top:5px;padding:2px 9px;font-size:10px;border-radius:4px;border:1px solid #7c3aed;background:#f5f3ff;color:#7c3aed;cursor:pointer;font-family:IBM Plex Sans,sans-serif;font-weight:600;display:block';
+      (function(snap,recId){btn.addEventListener('click',function(){restoreFromTrail(recId,snap);});})(e.snap,r.id);
+      info.appendChild(btn);
     }
-    return '<div class="trail-entry">'+
-      '<div class="trail-dot '+dc+'">'+(dotIco[dc]||'·')+'</div>'+
-      '<div class="trail-info">'+
-        '<div class="trail-action">'+e.label+'</div>'+
-        '<div class="trail-detail">'+e.detail+'</div>'+
-        '<div class="trail-time">'+e.time+' · <strong>'+e.user+'</strong>'+(e.amt?' · '+e.amt:'')+'</div>'+
-        restoreBtn+
-      '</div></div>';
-  }).join('');
+    wrap.appendChild(dot);wrap.appendChild(info);
+    body.appendChild(wrap);
+  });
   document.getElementById('trailOverlay').classList.add('open');
 }
-function restoreFromTrail(recId,btn){
+function restoreFromTrail(recId,snapStr){
   if(!confirm('Επαναφορά σε αυτή την κατάσταση; Η τρέχουσα κατάσταση θα αντικατασταθεί.'))return;
-  var snapStr=btn.getAttribute('data-snap');
   if(!snapStr)return;
   try{var s=JSON.parse(snapStr);}catch(ex){showToast('Σφάλμα snapshot','#b91c1c');return;}
   var rec=records.find(function(x){return x.id==recId;});if(!rec)return;
