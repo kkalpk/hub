@@ -1425,6 +1425,7 @@ function buildCard(r,b){
       '<div class="bdg-row">'+pBadge+eBadge+'</div>'+
       '<div class="ef" onclick="editField('+r.id+',\'email\')">&#9993; <span id="efv-e-'+r.id+'">'+(r.email||'—')+'</span></div>'+
       '<div class="ef" onclick="editField('+r.id+',\'phone\')">&#128222; <span id="efv-p-'+r.id+'">'+(r.phone||'—')+'</span></div>'+
+      '<div class="ef" onclick="editField('+r.id+',\'parent\')" title="Γονική Οντότητα — κλικ για επεξεργασία">&#128106; <span id="efv-par-'+r.id+'">'+(r.parent||'<span style="color:var(--text3);font-style:italic">+ Γονική</span>')+'</span></div>'+
       (r.address?'<div style="font-size:10px;color:var(--text2);padding:1px 3px">📍 '+r.address+'</div>':'')+
       '<div class="last-act">Τελ: '+(r.last||'—')+'</div>'+
     '</div>'+
@@ -1437,15 +1438,32 @@ function buildCard(r,b){
 // ════════════════════════════════════════════════════
 function editField(id,field){
   var r=records.find(function(x){return x.id==id;});if(!r)return;
-  var pfx=field==='email'?'e':'p';
+  var pfx=field==='email'?'e':field==='phone'?'p':field==='parent'?'par':'g';
   var valEl=document.getElementById('efv-'+pfx+'-'+id);if(!valEl)return;
-  var orig=r[field]||'';var icon=field==='email'?'&#9993; ':'&#128222; ';
-  var parent=valEl.parentElement;
-  parent.innerHTML=icon+'<input id="ei-'+field+'-'+id+'" style="border:none;outline:none;font-size:10px;font-family:IBM Plex Sans,sans-serif;color:var(--text);background:transparent;width:165px;" value="'+orig+'" onclick="event.stopPropagation()">';
+  var orig=r[field]||'';
+  var icons={email:'&#9993; ',phone:'&#128222; ',parent:'&#128106; '};
+  var icon=icons[field]||'';
+  var par=valEl.parentElement;
+  par.innerHTML=icon+'<input id="ei-'+field+'-'+id+'" style="border:none;outline:none;font-size:10px;font-family:IBM Plex Sans,sans-serif;color:var(--text);background:transparent;width:165px;" value="'+orig+'" onclick="event.stopPropagation()">';
   var inp=document.getElementById('ei-'+field+'-'+id);if(!inp)return;inp.focus();inp.select();
-  function save(){var nv=inp.value.trim();r[field]=nv;parent.innerHTML=icon+'<span id="efv-'+pfx+'-'+id+'">'+(nv||'—')+'</span>';parent.onclick=function(){editField(id,field);};if(nv!==orig){showToast((field==='email'?'Email':'Τηλ.')+': '+nv,'#166534');var gf={};gf[field==='email'?'Email':'Phone']=nv;graphPatchPolicy(r,gf);}}
+  var spMap={email:'Email',phone:'Phone',parent:'Parent',note:'Note',address:'Address'};
+  function save(){
+    var nv=inp.value.trim();r[field]=nv;
+    par.innerHTML=icon+'<span id="efv-'+pfx+'-'+id+'">'+(nv||'—')+'</span>';
+    par.onclick=function(){editField(id,field);};
+    if(nv!==orig){
+      var label={email:'Email',phone:'Τηλ.',parent:'Γονική'}[field]||field;
+      showToast(label+': '+nv,'#166534');
+      var gf={};var sp=spMap[field]||field;gf[sp]=nv;
+      graphPatchPolicy(r,gf);
+      addLog(r,'note','Επεξεργασία: '+label,nv,'',false);
+    }
+  }
   inp.onblur=save;
-  inp.onkeydown=function(e){if(e.key==='Enter')save();if(e.key==='Escape'){parent.innerHTML=icon+'<span id="efv-'+pfx+'-'+id+'">'+(orig||'—')+'</span>';parent.onclick=function(){editField(id,field);};}};
+  inp.onkeydown=function(e){
+    if(e.key==='Enter')save();
+    if(e.key==='Escape'){par.innerHTML=icon+'<span id="efv-'+pfx+'-'+id+'">'+(orig||'—')+'</span>';par.onclick=function(){editField(id,field);};}
+  };
 }
 
 // ════════════════════════════════════════════════════
@@ -2001,13 +2019,15 @@ function exportMonthlyExcel(){
   else if(filt==='unpaid')recs=recs.filter(function(r){return r.payment==='UNPAID';});
   else if(filt==='paid')recs=recs.filter(function(r){return r.payment==='PAID'||r.payment==='PAID_PENDING';});
   // Build CSV (opens as Excel)
-  var headers=['Ασφαλιστική','Κλάδος','Αρ. Συμβολαίου','Πελάτης','Γονική Οντότητα','Πινακίδα','ΚΗΠ','Ημ. Λήξης','Status','Email','Τηλέφωνο','Σχόλιο'];
+  // Sort: by expiry date (same as monthly view)
+  recs.sort(function(a,b){return daysDiff(a.expiry)-daysDiff(b.expiry);});
+  var headers=['Ημ. Λήξης','Πελάτης','Αρ. Συμβολαίου','Ασφαλιστική','Κλάδος','Ασφάλιστρα','Status','Σχόλιο','Γονική Οντότητα','Πινακίδα','ΚΗΠ','Email','Τηλέφωνο','Πάγια Εντολή'];
   var rows=[headers];
   recs.forEach(function(r){
     rows.push([
-      r.insurer||'',r.branch||'',r.policy||'',r.client||'',r.parent||'',
-      r.plate||'',r.kip||'',r.expiry||'',r.payment||'',
-      r.email||'',r.phone||'',r.note||''
+      r.expiry||'',r.client||'',r.policy||'',r.insurer||'',r.branch||'',
+      r.premium||'',r.payment||'',r.note||'',r.parent||'',
+      r.plate||'',r.kip||'',r.email||'',r.phone||'',r.hasSO?'ΝΑΙ':'ΟΧΙ'
     ]);
   });
   var csv=rows.map(function(row){return row.map(function(c){return '"'+(c+'').replace(/"/g,'""')+'"';}).join(';');}).join('\n');
