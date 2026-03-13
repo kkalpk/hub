@@ -2,6 +2,7 @@
 <html lang="el">
 <head>
 <meta charset="UTF-8">
+  <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PK · Renewals Hub — LIVE</title>
 <script src="https://unpkg.com/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
@@ -2154,8 +2155,7 @@ function renderSORegistry(){
 // Βοηθητικές συναρτήσεις status
 function soSetInactive(id){
   var r=soRegistry.find(function(x){return x.id==id;});if(!r)return;
-  if(!confirm('Pause πάγιας εντολής για '+r.client+';
-Θα μείνει στο ιστορικό αλλά δεν θα εμφανίζεται στο Queue.'))return;
+  if(!confirm('Pause πάγιας εντολής για '+r.client+'; Θα μείνει στο ιστορικό αλλά δεν θα εμφανίζεται στο Queue.'))return;
   var u=currentUser&&currentUser.email?currentUser.email:'KK';
   r.soStatus='inactive';
   if(r.graphId) graphCall('PATCH',listPath('PK_SORegistry')+'/items/'+r.graphId+'/fields',{SO_Status:'inactive'}).catch(function(){});
@@ -2177,8 +2177,7 @@ function soSetActive(id){
 }
 function soDelete(id){
   var r=soRegistry.find(function(x){return x.id==id;});if(!r)return;
-  if(!confirm('ΟΡΙΣΤΙΚΗ διαγραφή πάγιας για '+r.client+';
-Δεν μπορεί να αναιρεθεί.'))return;
+  if(!confirm('ΟΡΙΣΤΙΚΗ διαγραφή πάγιας για '+r.client+'; Δεν μπορεί να αναιρεθεί.'))return;
   var u=currentUser&&currentUser.email?currentUser.email:'KK';
   soRegistry=soRegistry.filter(function(x){return x.id!==id;});
   if(r.graphId) graphCall('DELETE',listPath('PK_SORegistry')+'/items/'+r.graphId).catch(function(){});
