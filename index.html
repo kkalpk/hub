@@ -966,14 +966,17 @@ function logItemToLog(item) {
 }
 function pendItemToPend(item) {
   var f = item.fields || {};
+  // Done: SharePoint επιστρέφει boolean ή null
+  var isDone = f.Done===true || f.Done===1 || f.Done==='true';
   return {
     uid: item.id,
     rid: '',
     client: f.Title || f.Client || '',
     policy: f.Policy || '',
-    insurer: '', premium: '', email: f.Email || '', phone: f.Phone || '', parent: '',
-    what: f.Message || '',
-    done: f.Done || false
+    insurer: f.Insurer || '', premium: f.Amount || '', 
+    email: f.Email || '', phone: f.Phone || '', parent: f.Parent || '',
+    what: f.Message || f.What || '(χωρίς σημείωση)',
+    done: isDone
   };
 }
 function soItemToSO(item) {
@@ -1074,7 +1077,8 @@ async function graphCreatePend(entry) {
       fields: {
         Title: entry.client || '', Policy: entry.policy || '',
         Message: entry.what || '', Done: false,
-        User: currentUser.email || 'KK', Email: entry.email || '', Phone: entry.phone || ''
+        User: currentUser.email || 'KK', Email: entry.email || '', Phone: entry.phone || '',
+        Insurer: entry.insurer || '', Amount: entry.premium || '', Parent: entry.parent || ''
       }
     });
   } catch(e) { showToast('\u26a0\ufe0f Sync error (Pending): ' + e.message.substring(0,60), '#b45309'); console.error(e); }
@@ -1342,7 +1346,7 @@ var bktCfg=[
     btns:function(r){return[{cls:'mail',l:'&#9993; Mail 7d',a:'mail_7'},{cls:'call',l:'&#128222; Call',a:'call'},{cls:'call',l:'&#128241; SMS',a:'sms'},{cls:'paid',l:'&#10003; Πληρώθηκε',a:'paid'},{cls:'cncl',l:'&#10006;',a:'cancel'},{cls:'nore',l:'&#128123;',a:'noresp'}];}},
   // ── BUCKET 8 — Standing Orders Info Mail ─────────────
   {id:'so8',cls:'ntc',label:'&#8505; BUCKET 8 — Standing Orders — Info Mail 30 ημερών',
-    fn:function(r){var d=daysDiff(r.expiry);return r.hasSO&&r.payment==='UNPAID'&&d>0&&d<=35&&!closedIds[r.id]&&!soInfoMailSent(r);},
+    fn:function(r){var d=daysDiff(r.expiry);return r.hasSO&&r.payment==='UNPAID'&&d>=0&&d<=45&&!closedIds[r.id]&&!soInfoMailSent(r);},
     btns:function(r){return[{cls:'mail',l:'&#8505; Στείλε Info Mail (Πάγια)',a:'so_info_mail'}];}},
   // ── BUCKET 9 — Holiday / Weekend Risk ────────────────
   // Μένει μέχρι PAID confirmed, CANCELLED, NOT_RENEWED, REPLACED, NO_RESPONSE
@@ -2097,11 +2101,32 @@ function renderSORegistry(){
       '<div style="padding:0 8px;border-left:1px solid var(--border);font-size:11px">'+r.insurer+'<br><span style="color:var(--text2);font-size:9px">'+r.branch+'</span></div>'+
       '<div style="padding:0 8px;border-left:1px solid var(--border);font-family:IBM Plex Mono,monospace;font-weight:700;font-size:11px">'+r.premium+'€</div>'+
       '<div style="padding:0 8px;border-left:1px solid var(--border)"><span class="so-badge '+st[0]+'">'+st[1]+'</span></div>'+
-      '<div style="padding:0 8px;border-left:1px solid var(--border);font-size:10px;color:var(--text2)">'+(r.confirmThisYear||'Αναμένεται')+'</div>'+
+      '<div style="padding:0 8px;border-left:1px solid var(--border);font-size:10px;color:var(--text2)" title="Κάθε χρόνο λίγο πριν τη λήξη ο πελάτης επιβεβαιώνει αν συνεχίζει την πάγια εντολή">'+(r.confirmThisYear||'<span style="color:var(--orange)">⏳ Αναμένεται</span>')+'</div>'+
       '<div style="padding:0 8px;border-left:1px solid var(--border);display:flex;gap:4px;align-items:center">'+act+'</div></div>';
   }).join('');
 }
-function soConfirm(id,keep){var r=soRegistry.find(function(x){return x.id==id;});if(!r)return;r.soStatus='active';r.confirmThisYear=keep?fmtDate(TODAY):fmtDate(TODAY)+' — Άρση';showToast(keep?'Πάγια επιβεβαιώθηκε':'Πάγια αφαιρέθηκε','#0f766e');renderSORegistry();}
+function soConfirm(id,keep){
+  var r=soRegistry.find(function(x){return x.id==id;});if(!r)return;
+  r.soStatus='active';
+  r.confirmThisYear=keep?('✓ '+fmtDate(TODAY)):('✗ Άρση '+fmtDate(TODAY));
+  if(r.graphId){
+    graphCall('PATCH',listPath('PK_SORegistry')+'/items/'+r.graphId+'/fields',{
+      SO_Status:'active', Confirmed_At: new Date().toISOString()
+    }).catch(function(){});
+  }
+  if(!keep){
+    // Άρση: αφαίρεση ΠΕ από record
+    var rec=records.find(function(x){return x.policy&&r.policy&&x.policy.trim()===r.policy.trim();});
+    if(rec){rec.hasSO=false;rec.soHistory=false;graphPatchPolicy(rec,{Has_SO:false});}
+    soRegistry=soRegistry.filter(function(x){return x.id!==id;});
+    if(r.graphId) graphCall('DELETE',listPath('PK_SORegistry')+'/items/'+r.graphId).catch(function(){});
+    renderQueue();updateBadges();
+    showToast('⭕ Πάγια αφαιρέθηκε — '+r.client,'#b91c1c');
+  } else {
+    showToast('✅ Πάγια επιβεβαιώθηκε — '+r.client,'#0f766e');
+  }
+  renderSORegistry();
+}
 
 // ════════════════════════════════════════════════════
 // RAW
@@ -2431,6 +2456,13 @@ function getArchiveStatus(id){
   for(var t of ['cancelled','norenewal','replaced','noresp']){if(entries.find(function(e){return e.type===t;}))return t;}
   return 'paid_sent';
 }
+var archiveStatuses={
+  'paid_sent':'✓ Πληρώθηκε + Εστάλη',
+  'cancelled':'✗ Ακυρώθηκε',
+  'norenewal':'🚫 Δεν Ανανέωσε',
+  'replaced':'🔄 Αλλού / Αλλαγή',
+  'noresp':'👻 Δεν Απάντησε'
+};
 function renderArchive(q){
   var body=document.getElementById('archBody');
   var filter=(document.getElementById('archFilter')||{}).value||'all';
