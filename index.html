@@ -322,6 +322,7 @@ mono{font-family:'IBM Plex Mono',monospace;}
 .so-badge.active{background:var(--teal-bg);color:var(--teal);}
 .so-badge.pconf{background:var(--yellow-bg);color:var(--yellow);animation:blink 2s infinite;}
 .so-badge.exc{background:var(--red-bg);color:var(--red);}
+.so-badge.inactive{background:#f1f5f9;color:#94a3b8;}
 
 /* ── RAW ── */
 .raw-info{background:var(--purple-bg);border:1px solid var(--purple-light);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--purple);margin-bottom:12px;}
@@ -1346,7 +1347,7 @@ var bktCfg=[
     btns:function(r){return[{cls:'mail',l:'&#9993; Mail 7d',a:'mail_7'},{cls:'call',l:'&#128222; Call',a:'call'},{cls:'call',l:'&#128241; SMS',a:'sms'},{cls:'paid',l:'&#10003; Πληρώθηκε',a:'paid'},{cls:'cncl',l:'&#10006;',a:'cancel'},{cls:'nore',l:'&#128123;',a:'noresp'}];}},
   // ── BUCKET 8 — Standing Orders Info Mail ─────────────
   {id:'so8',cls:'ntc',label:'&#8505; BUCKET 8 — Standing Orders — Info Mail 30 ημερών',
-    fn:function(r){var d=daysDiff(r.expiry);return r.hasSO&&r.payment==='UNPAID'&&d>=0&&d<=45&&!closedIds[r.id]&&!soInfoMailSent(r);},
+    fn:function(r){var d=daysDiff(r.expiry);var soEntry=soRegistry.find(function(s){return s.policy&&r.policy&&s.policy.trim()===r.policy.trim();});return r.hasSO&&soEntry&&soEntry.soStatus!=='inactive'&&r.payment==='UNPAID'&&d>=0&&d<=45&&!closedIds[r.id]&&!soInfoMailSent(r);},
     btns:function(r){return[{cls:'mail',l:'&#8505; Στείλε Info Mail (Πάγια)',a:'so_info_mail'}];}},
   // ── BUCKET 9 — Holiday / Weekend Risk ────────────────
   // Μένει μέχρι PAID confirmed, CANCELLED, NOT_RENEWED, REPLACED, NO_RESPONSE
@@ -2108,22 +2109,83 @@ function cancelNote(id){var n=document.getElementById('ned-'+id);if(n)n.classLis
 // ════════════════════════════════════════════════════
 function renderSORegistry(){
   var body=document.getElementById('soBody');
-  var stM={active:['active','&#128309; Ενεργή'],pending_confirm:['pconf','&#9203; Επιβεβαίωση;'],exception:['exc','&#128680; Exception']};
+  var stM={
+    active:['active','&#128309; Ενεργή'],
+    inactive:['inactive','&#9899; Ανενεργή'],
+    pending_confirm:['pconf','&#9203; Επιβεβαίωση;'],
+    exception:['exc','&#128680; Exception']
+  };
   var periodLabel={annual:'Ετήσια',semiannual:'Εξαμηνιαία',quarterly:'Τριμηνιαία',monthly:'Μηνιαία'};
-  body.innerHTML=soRegistry.map(function(r){
+  // Sort: active first, then inactive
+  var sorted=soRegistry.slice().sort(function(a,b){
+    var ord={active:0,pending_confirm:1,exception:2,inactive:3};
+    return (ord[a.soStatus]||0)-(ord[b.soStatus]||0);
+  });
+  if(!sorted.length){body.innerHTML='<div style="padding:24px;text-align:center;color:var(--text3)">Δεν υπάρχουν Πάγιες Εντολές. Ενεργοποίησε ΠΕ από τις κάρτες στο Today Queue.</div>';return;}
+  body.innerHTML=sorted.map(function(r){
     var st=stM[r.soStatus]||stM['active'];
     var pLbl=periodLabel[r.period]||'Ετήσια';
     var pColor=r.period==='monthly'?'color:var(--orange)':r.period==='quarterly'?'color:var(--yellow)':'color:var(--teal)';
-    var act=r.soStatus==='pending_confirm'?'<button class="btn chk" style="font-size:10px" onclick="soConfirm('+r.id+',true)">Κρατάμε</button> <button class="btn cncl" style="font-size:10px" onclick="soConfirm('+r.id+',false)">Άρση</button>':r.soStatus==='exception'?'<button class="btn cncl" style="font-size:10px">→ Queue</button>':'<span style="font-size:10px;color:var(--text3)">Ενεργή</span>';
-    return '<div class="so-row"><div class="so-st"></div>'+
-      '<div style="padding:0 8px;font-family:IBM Plex Mono,monospace;font-size:12px;font-weight:600;color:var(--teal)">'+r.expiry+'<div style="font-size:9px;'+pColor+'">'+pLbl+'</div></div>'+
+    var isInactive=r.soStatus==='inactive';
+    var rowStyle=isInactive?'opacity:0.55;':'';
+    // Κουμπιά ανάλογα με status
+    var act='';
+    if(r.soStatus==='pending_confirm'){
+      act='<button class="btn chk" style="font-size:10px" onclick="soConfirm('+r.id+',true)">&#10003; Κρατάμε</button>'+
+          '<button class="btn cncl" style="font-size:10px" onclick="soSetInactive('+r.id+')">&#9899; Pause</button>'+
+          '<button class="btn cncl" style="font-size:10px" onclick="soDelete('+r.id+')" title="Οριστική διαγραφή">&#128465;</button>';
+    } else if(isInactive){
+      act='<button class="btn chk" style="font-size:10px" onclick="soSetActive('+r.id+')" title="Επανενεργοποίηση">&#128309; Ενεργοποίηση</button>'+
+          '<button class="btn cncl" style="font-size:10px" onclick="soDelete('+r.id+')" title="Οριστική διαγραφή από το μητρώο">&#128465; Διαγραφή</button>';
+    } else {
+      act='<button class="btn cncl" style="font-size:10px" onclick="soSetInactive('+r.id+')" title="Προσωρινή παύση — μένει στο ιστορικό">&#9899; Pause</button>'+
+          '<button class="btn cncl" style="font-size:10px" onclick="soDelete('+r.id+')" title="Οριστική διαγραφή από το μητρώο">&#128465; Διαγραφή</button>';
+    }
+    return '<div class="so-row" style="'+rowStyle+'"><div class="so-st" style="background:'+(isInactive?'var(--text3)':'var(--teal)')+'"></div>'+
+      '<div style="padding:0 8px;font-family:IBM Plex Mono,monospace;font-size:12px;font-weight:600;color:'+(isInactive?'var(--text3)':'var(--teal)')+'">'+r.expiry+'<div style="font-size:9px;'+pColor+'">'+pLbl+'</div></div>'+
       '<div style="padding:0 8px;border-left:1px solid var(--border)"><div style="font-weight:600;font-size:11px">'+r.client+'</div><div style="font-size:9px;color:var(--text3);font-family:IBM Plex Mono,monospace">'+r.policy+'</div></div>'+
       '<div style="padding:0 8px;border-left:1px solid var(--border);font-size:11px">'+r.insurer+'<br><span style="color:var(--text2);font-size:9px">'+r.branch+'</span></div>'+
       '<div style="padding:0 8px;border-left:1px solid var(--border);font-family:IBM Plex Mono,monospace;font-weight:700;font-size:11px">'+r.premium+'€</div>'+
       '<div style="padding:0 8px;border-left:1px solid var(--border)"><span class="so-badge '+st[0]+'">'+st[1]+'</span></div>'+
-      '<div style="padding:0 8px;border-left:1px solid var(--border);font-size:10px;color:var(--text2)" title="Κάθε χρόνο λίγο πριν τη λήξη ο πελάτης επιβεβαιώνει αν συνεχίζει την πάγια εντολή">'+(r.confirmThisYear||'<span style="color:var(--orange)">⏳ Αναμένεται</span>')+'</div>'+
-      '<div style="padding:0 8px;border-left:1px solid var(--border);display:flex;gap:4px;align-items:center">'+act+'</div></div>';
+      '<div style="padding:0 8px;border-left:1px solid var(--border);font-size:10px;color:var(--text2)" title="Κάθε χρόνο ο πελάτης επιβεβαιώνει αν συνεχίζει">'+(r.confirmThisYear||'<span style="color:var(--orange)">&#8987; Αναμένεται</span>')+'</div>'+
+      '<div style="padding:0 8px;border-left:1px solid var(--border);display:flex;gap:4px;align-items:center;flex-wrap:wrap">'+act+'</div></div>';
   }).join('');
+}
+// Βοηθητικές συναρτήσεις status
+function soSetInactive(id){
+  var r=soRegistry.find(function(x){return x.id==id;});if(!r)return;
+  if(!confirm('Pause πάγιας εντολής για '+r.client+';
+Θα μείνει στο ιστορικό αλλά δεν θα εμφανίζεται στο Queue.'))return;
+  var u=currentUser&&currentUser.email?currentUser.email:'KK';
+  r.soStatus='inactive';
+  if(r.graphId) graphCall('PATCH',listPath('PK_SORegistry')+'/items/'+r.graphId+'/fields',{SO_Status:'inactive'}).catch(function(){});
+  // Απενεργοποίηση ΠΕ badge στο record (χωρίς να το αφαιρέσουμε από soRegistry)
+  var rec=records.find(function(x){return x.policy&&r.policy&&x.policy.trim()===r.policy.trim();});
+  if(rec){rec.hasSO=false;rec.soHistory=false;graphPatchPolicy(rec,{Has_SO:false,Last_Action:'ΠΕ Pause — '+nowStr()+' — '+u});}
+  renderSORegistry();renderQueue();updateBadges();
+  showToast('⏸ Πάγια σε Pause — '+r.client,'#b45309');
+}
+function soSetActive(id){
+  var r=soRegistry.find(function(x){return x.id==id;});if(!r)return;
+  var u=currentUser&&currentUser.email?currentUser.email:'KK';
+  r.soStatus='active';
+  if(r.graphId) graphCall('PATCH',listPath('PK_SORegistry')+'/items/'+r.graphId+'/fields',{SO_Status:'active'}).catch(function(){});
+  var rec=records.find(function(x){return x.policy&&r.policy&&x.policy.trim()===r.policy.trim();});
+  if(rec){rec.hasSO=true;rec.soHistory=true;graphPatchPolicy(rec,{Has_SO:true,Last_Action:'ΠΕ Επανενεργοποίηση — '+nowStr()+' — '+u});}
+  renderSORegistry();renderQueue();updateBadges();
+  showToast('🔵 Πάγια Ενεργή — '+r.client,'#0f766e');
+}
+function soDelete(id){
+  var r=soRegistry.find(function(x){return x.id==id;});if(!r)return;
+  if(!confirm('ΟΡΙΣΤΙΚΗ διαγραφή πάγιας για '+r.client+';
+Δεν μπορεί να αναιρεθεί.'))return;
+  var u=currentUser&&currentUser.email?currentUser.email:'KK';
+  soRegistry=soRegistry.filter(function(x){return x.id!==id;});
+  if(r.graphId) graphCall('DELETE',listPath('PK_SORegistry')+'/items/'+r.graphId).catch(function(){});
+  var rec=records.find(function(x){return x.policy&&r.policy&&x.policy.trim()===r.policy.trim();});
+  if(rec){rec.hasSO=false;rec.soHistory=false;graphPatchPolicy(rec,{Has_SO:false,Last_Action:'ΠΕ Διαγραφή — '+nowStr()+' — '+u});}
+  renderSORegistry();renderQueue();updateBadges();
+  showToast('🗑 Πάγια διαγράφηκε — '+r.client,'#b91c1c');
 }
 function soConfirm(id,keep){
   var r=soRegistry.find(function(x){return x.id==id;});if(!r)return;
