@@ -1120,6 +1120,7 @@ async function graphCreateSO(so) {
   } catch(e) { showToast('⚠️ Sync error (SO): ' + e.message.substring(0,60), '#b45309'); }
 }
 
+async function graphDeletePolicy(graphId) {
   if (!graphListIds['PK_Policies'] || !graphId) return;
   try {
     await graphCall('DELETE', listPath('PK_Policies') + '/items/' + graphId);
