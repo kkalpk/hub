@@ -454,7 +454,7 @@ mono{font-family:'IBM Plex Mono',monospace;}
     <div class="sp" style="background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-light)" onclick="scrollB('so8')">&#8505; Πάγιες</div>
     <div class="sp yel" onclick="scrollB('hol')">&#128197; Αργίες</div>
     <div class="sp" style="background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-light)" onclick="scrollB('snz')">&#128336; Snoozed</div>
-    <div class="prog-wrap"><span id="progTxt">0/0</span><div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div></div>
+    <div class="prog-wrap" title="Ολοκληρωμένες ανανεώσεις / Σύνολο μήνα"><span style="font-size:9px;color:var(--text3);margin-right:4px">✓</span><span id="progTxt">0/0</span><div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div></div>
   </div>
 </div>
 
@@ -1019,6 +1019,18 @@ async function fetchAllData() {
     setLoading('Φόρτωση Πάγιων Εντολών...', 92);
     var soResp = await graphCall('GET', listPath('PK_SORegistry') + '/items?$expand=fields&$top=2000');
     soRegistry = (soResp.value || []).map(soItemToSO);
+    // FIX: Φόρτωση closedIds από Close_Reason field του SharePoint
+    closedIds = {};
+    records.forEach(function(r){
+      if(r.closeReason&&r.closeReason!=='') closedIds[r.id]=true;
+    });
+    // FIX: hasSO υπολογίζεται από soRegistry (Πάγιες tab = η αλήθεια)
+    var soPolicies={};
+    soRegistry.forEach(function(s){ if(s.policy) soPolicies[s.policy.trim()]=true; });
+    records.forEach(function(r){
+      var so=!!(r.policy&&soPolicies[r.policy.trim()]);
+      r.hasSO=so; r.soHistory=so;
+    });
     setLoading('Έτοιμο!', 100);
     setTimeout(function() {
       document.getElementById('loadingOverlay').style.display = 'none';
@@ -1092,7 +1104,22 @@ async function graphCreatePolicy(r) {
     return resp;
   } catch(e) { showToast('\u26a0\ufe0f Sync error (create): ' + e.message.substring(0,60), '#b45309'); return null; }
 }
-async function graphDeletePolicy(graphId) {
+async function graphCreateSO(so) {
+  if (!graphListIds['PK_SORegistry']) return;
+  try {
+    var resp = await graphCall('POST', listPath('PK_SORegistry') + '/items', {
+      fields: {
+        Title: so.client || '', Policy: so.policy || '',
+        Insurer: so.insurer || '', Branch: so.branch || '',
+        Expiry: so.expiry ? displayToISO(so.expiry) : null,
+        Premium: parseFloat(so.premium)||0,
+        SO_Status: 'active', Period: 'annual', Note: so.note || ''
+      }
+    });
+    if(resp&&resp.id) so.graphId=resp.id;
+  } catch(e) { showToast('⚠️ Sync error (SO): ' + e.message.substring(0,60), '#b45309'); }
+}
+
   if (!graphListIds['PK_Policies'] || !graphId) return;
   try {
     await graphCall('DELETE', listPath('PK_Policies') + '/items/' + graphId);
@@ -1829,8 +1856,25 @@ function toggleSO(id,evt){
   r.soHistory=!r.soHistory;r.hasSO=r.soHistory;
   var u=currentUser&&currentUser.email?currentUser.email:'KK';
   graphPatchPolicy(r,{Has_SO:r.soHistory,Last_Action:(r.soHistory?'ΠΕ ΟΝ':'ΠΕ OFF')+' — '+nowStr()+' — '+u});
+  if(r.soHistory){
+    // Προσθήκη στο soRegistry
+    var newSO={graphId:null,id:Date.now(),policy:r.policy||'',client:r.client,insurer:r.insurer,
+      branch:r.branch,expiry:r.expiry,premium:r.premium,soStatus:'active',confirmed:'',
+      confirmThisYear:null,period:'annual',note:''};
+    soRegistry.push(newSO);
+    graphCreateSO(newSO);
+    renderSORegistry();
+  } else {
+    // Αφαίρεση από soRegistry
+    var existing=soRegistry.find(function(s){return s.policy&&r.policy&&s.policy.trim()===r.policy.trim();});
+    if(existing&&existing.graphId){
+      graphCall('DELETE',listPath('PK_SORegistry')+'/items/'+existing.graphId).catch(function(){});
+    }
+    soRegistry=soRegistry.filter(function(s){return !(s.policy&&r.policy&&s.policy.trim()===r.policy.trim());});
+    renderSORegistry();
+  }
   addLog(r,'note',(r.soHistory?'✅ Πάγια Εντολή ΟΝ':'⭕ Πάγια Εντολή OFF'),'',r.premium+'€',false);
-  renderQueue();
+  updateBadges();renderQueue();
   showToast((r.soHistory?'🔵 Πάγια Εντολή ΟΝ':'⚪ Πάγια Εντολή OFF')+' — '+r.client.split(' ')[0],'#1d4ed8');
 }
 function closeModal(){document.getElementById('modalOverlay').classList.remove('open');currentModal=null;}
