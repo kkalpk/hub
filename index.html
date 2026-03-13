@@ -417,7 +417,7 @@ mono{font-family:'IBM Plex Mono',monospace;}
   <div class="topbar">
     <div class="logo">PK<span>·</span>RENEWALS HUB</div>
     <div class="tb-div"></div>
-    <div class="tb-lbl">v6.2 · LIVE</div>
+    <div class="tb-lbl">v6.3 · LIVE</div>
     <div class="tb-date" id="todayDisplay"></div>
     <div class="tb-right">
       <div class="u-av">KK</div>
@@ -1446,7 +1446,17 @@ function editField(id,field){
   var icons={email:'&#9993; ',phone:'&#128222; ',parent:'&#128106; '};
   var icon=icons[field]||'';
   var par=valEl.parentElement;
-  par.innerHTML=icon+'<input id="ei-'+field+'-'+id+'" style="border:none;outline:none;font-size:10px;font-family:IBM Plex Sans,sans-serif;color:var(--text);background:transparent;width:165px;" value="'+orig+'" onclick="event.stopPropagation()">';
+  // Γονική Οντότητα: autocomplete από υπάρχουσες τιμές
+  var listAttr='';
+  if(field==='parent'){
+    var parents=[...new Set(records.map(function(x){return x.parent||'';}).filter(Boolean))].sort();
+    var dlId='dl-parent-'+id;
+    var dlHtml='<datalist id="'+dlId+'">'+parents.map(function(p){return '<option value="'+p.replace(/"/g,'&quot;')+'">'+p+'</option>';}).join('')+'</datalist>';
+    listAttr=' list="'+dlId+'"';
+    par.innerHTML=icon+'<input id="ei-'+field+'-'+id+'" list="'+dlId+'" style="border:none;outline:none;font-size:10px;font-family:IBM Plex Sans,sans-serif;color:var(--text);background:transparent;width:165px;" value="'+orig+'" onclick="event.stopPropagation()">'+dlHtml;
+  } else {
+    par.innerHTML=icon+'<input id="ei-'+field+'-'+id+'" style="border:none;outline:none;font-size:10px;font-family:IBM Plex Sans,sans-serif;color:var(--text);background:transparent;width:165px;" value="'+orig+'" onclick="event.stopPropagation()">';
+  }
   var inp=document.getElementById('ei-'+field+'-'+id);if(!inp)return;inp.focus();inp.select();
   var spMap={email:'Email',phone:'Phone',parent:'Parent',note:'Note',address:'Address'};
   function save(){
